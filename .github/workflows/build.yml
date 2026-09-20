@@ -1,0 +1,47 @@
+# Builds Skurra.exe on a Windows machine at GitHub, for free.
+#
+# Runs when you push a version tag, e.g.   git tag v1.1.0 && git push --tags
+# or by hand: GitHub -> Actions -> "Build Windows app" -> Run workflow.
+# The finished Skurra.exe is attached to the release for that tag.
+
+name: Build Windows app
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install what the build needs
+        run: pip install pywebview pyinstaller send2trash
+
+      - name: Build Skurra.exe
+        run: >
+          pyinstaller --noconfirm --onefile --windowed --name Skurra
+          --icon icon/Skurra.ico
+          --add-data "index.html;."
+          app.py
+
+      - name: Keep the file so you can download it from the Actions page
+        uses: actions/upload-artifact@v4
+        with:
+          name: Skurra-windows
+          path: dist/Skurra.exe
+
+      - name: Attach it to the release (only for version tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Skurra.exe

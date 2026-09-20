@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sitting unused</title>
+<style>
+/* ===================================================================
+   YOUR CONTROL PANEL. Change the values here and everything follows.
+   =================================================================== */
+:root {
+  --paper:   #e4e7e5;   /* page */
+  --card:    #f6f8f7;   /* each row */
+  --ink:     #14191a;   /* text */
+  --dim:     #6d7573;   /* quiet text */
+  --rule:    #ccd2cf;   /* lines */
+  --patina:  #2f6b5e;   /* the flagged colour */
+  --step:    22px;      /* spacing rhythm */
+  --round:   10px;      /* corner softness */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:  #191d1e;
+    --card:   #232829;
+    --ink:    #e9eeec;
+    --dim:    #8d9794;
+    --rule:   #333a3b;
+    --patina: #6bbfa8;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: calc(var(--step) * 2);
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+main { max-width: 680px; margin: 0 auto; }
+
+h1 { margin: 0; font-size: 29px; font-weight: 600; letter-spacing: -0.02em; }
+.note { margin: 6px 0 0; color: var(--dim); font-size: 14px; }
+
+/* ---- the age line ---- */
+.axis { margin: calc(var(--step) * 2) 0; }
+.track {
+  position: relative; height: 34px;
+  border-bottom: 1px solid var(--rule);
+}
+.dot {
+  position: absolute; bottom: -1px;
+  transform: translate(-50%, 50%);
+  border-radius: 50%;
+  background: var(--dim);
+  border: 2px solid var(--paper);
+}
+.dot.unchanged { background: var(--patina); }
+.ticks {
+  display: flex; justify-content: space-between;
+  margin-top: 9px; color: var(--dim); font-size: 12px;
+}
+
+/* ---- the list ---- */
+.row {
+  position: relative; display: flex; align-items: center; gap: 14px;
+  padding: 15px 17px; margin-bottom: 5px;
+  background: var(--card); border-radius: var(--round);
+  overflow: hidden;
+}
+.fill {
+  position: absolute; inset: 0 auto 0 0; width: var(--fill);
+  background: var(--patina); opacity: 0.09;
+}
+.row.active .fill { background: var(--dim); opacity: 0.08; }
+.row > span:not(.fill) { position: relative; }
+
+.who { flex: 1; min-width: 0; }
+.who b { display: block; font-weight: 500; }
+.who em { display: block; font-style: normal; color: var(--dim); font-size: 12px; }
+
+.num { font-weight: 500; }
+.age { color: var(--dim); font-size: 13px; width: 72px; text-align: right; }
+.state {
+  font-size: 12px; color: var(--dim);
+  width: 94px; text-align: right;
+}
+.row.unchanged .state { color: var(--patina); font-weight: 500; }
+
+.empty { color: var(--dim); padding: var(--step) 0; }
+.foot {
+  margin-top: calc(var(--step) * 1.5); padding-top: var(--step);
+  border-top: 1px solid var(--rule);
+  color: var(--dim); font-size: 13px;
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Sitting unused</h1>
+  <p class="note">521 MB across 1 folders. 1 of 1 unchanged since the last scan.</p>
+
+  <div class="axis">
+    <div class="track"><i class="dot unchanged" style="left:76%;width:22px;height:22px" title="Sports Interactive"></i></div>
+    <div class="ticks"><span>a year ago</span><span>six months</span><span>today</span></div>
+  </div>
+
+  
+      <div class="row unchanged" style="--fill:100%">
+        <span class="fill"></span>
+        <span class="who"><b>Sports Interactive</b><em>Application Support</em></span>
+        <span class="num">521.4 MB</span>
+        <span class="age">88 days</span>
+        <span class="state">unchanged</span>
+      </div>
+
+  <p class="foot">Unchanged means the folder is the same size as the last scan, so
+  nothing is using it. Anything that grew is still in use. Scanned 2026-09-14.</p>
+</main>
+</body>
+</html>
