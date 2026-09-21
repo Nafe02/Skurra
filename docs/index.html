@@ -39,6 +39,13 @@ nav.solid {
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
 .brand svg { width: 30px; height: 30px; }
+.brand .arc { transform-origin: 512px 512px; transform: rotate(-90deg); }
+.brand:hover .arc { animation: cycle 1.1s cubic-bezier(.5, 0, .2, 1); }
+@keyframes cycle {
+  0%   { transform: rotate(-90deg);  stroke-dasharray: 1400 500; }
+  45%  { stroke-dasharray: 300 1600; }
+  100% { transform: rotate(270deg); stroke-dasharray: 1400 500; }
+}
 .links { display: flex; align-items: center; gap: 26px; font-size: 15px; }
 .links a { text-decoration: none; color: var(--dim); }
 .links a:hover { color: var(--ink); }
@@ -93,7 +100,7 @@ h2 { font-size: clamp(28px, 4vw, 38px); letter-spacing: -0.02em; margin: 0 0 10p
 .sub { color: var(--dim); font-size: 17px; margin: 0 0 36px; max-width: 560px; }
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
-.card { background: var(--card); border: 1px solid var(--rule); border-radius: var(--round); padding: 22px 22px 20px; }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: var(--round); padding: 22px 22px 20px; min-width: 0; }
 .card .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 14px; background: var(--paper2); }
 .card .ic svg { width: 20px; height: 20px; fill: none; stroke: var(--patina); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .card b { display: block; font-size: 17px; margin-bottom: 6px; }
@@ -103,6 +110,14 @@ h2 { font-size: clamp(28px, 4vw, 38px); letter-spacing: -0.02em; margin: 0 0 10p
 @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
 kbd { font: inherit; font-size: 14px; background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 1px 7px; color: var(--ink); white-space: nowrap; }
 .steps { margin: 0; padding-left: 20px; color: var(--dim); font-size: 15px; }
+.cmd { display: flex; align-items: center; gap: 8px; margin: 10px 0 14px; padding: 10px 10px 10px 14px; min-width: 0;
+       background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; }
+.cmd code { flex: 1; font: 13px/1.4 ui-monospace, Menlo, monospace; color: var(--ink); overflow-x: auto; white-space: nowrap; }
+.cmd button { font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 7px 12px; border-radius: 8px;
+              border: 1px solid var(--rule); background: var(--card); color: var(--ink); white-space: nowrap; }
+.cmd button:hover { border-color: var(--patina); }
+.or { color: var(--dim); font-size: 13px; margin: 14px 0 8px; text-transform: uppercase; letter-spacing: .05em; }
+.card .lbl { display: block; font-size: 14px; margin: 0 0 4px; }
 .steps li { margin-bottom: 8px; }
 footer { padding: 28px; border-top: 1px solid var(--rule); color: var(--dim); font-size: 13px; text-align: center; }
 footer a { color: var(--dim); }
@@ -125,8 +140,8 @@ footer a { color: var(--dim); }
     <svg viewBox="0 0 1024 1024" aria-hidden="true">
       <rect x="100" y="100" width="824" height="824" rx="184" fill="#1c2122"/>
       <circle cx="512" cy="512" r="300" fill="none" stroke="#2c3536" stroke-width="80"/>
-      <circle cx="512" cy="512" r="300" fill="none" stroke="#6bbfa8" stroke-width="80"
-              stroke-linecap="round" stroke-dasharray="1400 500" transform="rotate(-90 512 512)"/>
+      <circle class="arc" cx="512" cy="512" r="300" fill="none" stroke="#6bbfa8" stroke-width="80"
+              stroke-linecap="round" stroke-dasharray="1400 500"/>
     </svg>
     Skurra
   </a>
@@ -214,10 +229,14 @@ footer a { color: var(--dim); }
     <div class="two">
       <div class="card reveal">
         <b>Mac</b>
+        <span class="lbl">Fastest: one line, no warnings</span>
+        <p style="font-size:14px">Open <kbd>Terminal</kbd> (press <kbd>⌘ Space</kbd>, type <em>Terminal</em>), paste this, press Return. It downloads Skurra, puts it in Applications and opens it.</p>
+        <div class="cmd"><code id="oneliner">curl -fsSL https://nafe02.github.io/Skurra/install.sh | bash</code><button id="copy" type="button">Copy</button></div>
+        <div class="or">or, with the download button</div>
         <ol class="steps">
-          <li>Open <kbd>Skurra.dmg</kbd> and drag Skurra into Applications.</li>
-          <li><strong>Right-click</strong> Skurra and choose <kbd>Open</kbd>.</li>
-          <li>If it says it cannot verify the developer: <kbd>System Settings → Privacy &amp; Security</kbd>, scroll down, <kbd>Open Anyway</kbd>.</li>
+          <li>Open <kbd>Skurra.dmg</kbd> and drag Skurra into Applications, then open it.</li>
+          <li>When it says <em>“Skurra” Not Opened</em>, click <kbd>Done</kbd>.</li>
+          <li><kbd>System Settings → Privacy &amp; Security</kbd>, scroll down to <em>Skurra was blocked</em>, click <kbd>Open Anyway</kbd>.</li>
         </ol>
       </div>
       <div class="card reveal d1">
@@ -268,6 +287,14 @@ function detectOS() {
   return "other";
 }
 arrangeFor(detectOS());
+
+// ---- copy the one-line installer ----
+const copyBtn = document.getElementById("copy");
+copyBtn.onclick = async () => {
+  try { await navigator.clipboard.writeText(document.getElementById("oneliner").textContent); copyBtn.textContent = "Copied"; }
+  catch (e) { copyBtn.textContent = "Select and copy"; }
+  setTimeout(() => copyBtn.textContent = "Copy", 1800);
+};
 
 // ---- nav turns solid once you scroll ----
 const nav = document.getElementById("nav");
