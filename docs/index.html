@@ -248,6 +248,27 @@ footer a { color: var(--dim); }
 </footer>
 
 <script>
+// ---- put the visitor's own download first ----
+const DL = "https://github.com/nafe02/Skurra/releases/latest/download/";
+function arrangeFor(os) {                // "windows" | "mac" | "other"
+  for (const group of document.querySelectorAll(".buttons")) {
+    const [mac, win] = [...group.querySelectorAll("a.btn")].sort((x, y) => x.href.endsWith(".exe") - y.href.endsWith(".exe"));
+    const first = os === "windows" ? win : mac, second = first === win ? mac : win;
+    first.classList.remove("alt"); second.classList.add("alt");
+    group.prepend(first);
+  }
+  const pill = document.querySelector(".links a.pill");
+  pill.href = os === "windows" ? DL + "Skurra.exe" : os === "mac" ? DL + "Skurra.dmg" : "#download";
+}
+function detectOS() {
+  const plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+  const ua = navigator.userAgent;
+  if (/win/i.test(plat) || /Windows/.test(ua)) return "windows";
+  if (/mac/i.test(plat) || /Macintosh/.test(ua)) return "mac";
+  return "other";
+}
+arrangeFor(detectOS());
+
 // ---- nav turns solid once you scroll ----
 const nav = document.getElementById("nav");
 const onScroll = () => nav.classList.toggle("solid", window.scrollY > 12);
