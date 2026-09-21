@@ -1,6 +1,6 @@
 # Skurra roadmap
 
-Updated 2026-09-20. Android and iPhone stages were dropped: Android 16 shut off
+Updated 2026-09-21. Android and iPhone stages were dropped: Android 16 shut off
 cache clearing for third-party apps, and iPhone apps cannot see outside their
 own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 
@@ -16,14 +16,16 @@ own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 - Update banner: checks latest.json, offers the new download        done
 - Use it for two weeks and write down what annoys you              in progress
 
-## Stage 1.5 — Windows (.exe)                              NEXT
-- Windows has different junk: %LOCALAPPDATA%, %TEMP%, browser caches,
-  the Recycle Bin instead of the Trash, no Finder or mdls
-- Same page (index.html), a Windows branch in app.py for the folders and
-  the recycle-bin call
-- The .exe cannot be built on a Mac. Build it with GitHub Actions (free):
-  push the code, GitHub builds Skurra.exe on a Windows machine
-- Publish both downloads and latest.json on GitHub Releases
+## Stage 1.5 — Windows (.exe)                              IN PROGRESS
+- Windows branch in app.py: %LOCALAPPDATA%, %TEMP%, Recycle Bin,
+  installed programs from the registry                              done
+- Code on GitHub (github.com/nafe02/Skurra), GitHub Desktop signed in  done
+- GitHub Actions builds Skurra.exe on a Windows machine, free       done
+- First Skurra.exe built (14 MB, run #1, 2026-09-20)                done
+- A friend tests it on real Windows                                 <- you are here
+- Fix what he finds, rebuild, resend (repeat until it is boring)    next
+- First proper release: tag v1.0.0 -> .dmg + .exe on GitHub Releases,
+  latest.json points at it, the update banner goes live             next
 
 ## Costs that never go away
 - Mac notarization: $99/year, else users right-click > Open once
