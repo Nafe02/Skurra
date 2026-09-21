@@ -1,6 +1,6 @@
 # Skurra roadmap
 
-Updated 2026-09-21. Android and iPhone stages were dropped: Android 16 shut off
+Updated 2026-09-22. Android and iPhone stages were dropped: Android 16 shut off
 cache clearing for third-party apps, and iPhone apps cannot see outside their
 own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 
@@ -22,12 +22,14 @@ own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 - Code on GitHub (github.com/nafe02/Skurra), GitHub Desktop signed in  done
 - GitHub Actions builds Skurra.exe on a Windows machine, free       done
 - First Skurra.exe built (14 MB, run #1, 2026-09-20)                done
-- A friend tests it on real Windows                                 <- you are here
-- Fix what he finds, rebuild, resend (repeat until it is boring)    next
+- First Skurra.exe sent to a friend on Windows                      done
 - Mac build made universal (Intel + Apple chips) after a tester's
   "can't be opened" on an Apple-chip Mac                          done
 - Download page with two buttons, GitHub builds both files          done
-- First release: Actions -> Run workflow, enable GitHub Pages       next
+- First release v1.0.0 published: Skurra.dmg + Skurra.exe          done
+- Download page live at nafe02.github.io/Skurra: sticky nav, live
+  disk chart, picks Mac or Windows button for the visitor           done
+- Windows tester feedback, fix, rebuild, resend                     <- you are here
 
 ## Costs that never go away
 - Mac notarization: $99/year, else users right-click > Open once
