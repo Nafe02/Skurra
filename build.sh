@@ -2,7 +2,7 @@
 # Builds Skurra.app and Skurra.dmg into the dist/ folder.  Run with:  zsh build.sh
 cd "$(dirname "$0")"
 rm -rf build dist
-pyinstaller --noconfirm --windowed --name Skurra \
+pyinstaller --noconfirm --windowed --name Skurra --target-arch universal2 \
   --icon icon/Skurra.icns \
   --osx-bundle-identifier com.skurra.app \
   --add-data "index.html:." \

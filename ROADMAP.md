@@ -1,6 +1,6 @@
 # Skurra roadmap
 
-Updated 2026-09-20. Android and iPhone stages were dropped: Android 16 shut off
+Updated 2026-09-21. Android and iPhone stages were dropped: Android 16 shut off
 cache clearing for third-party apps, and iPhone apps cannot see outside their
 own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 
@@ -16,23 +16,34 @@ own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 - Update banner: checks latest.json, offers the new download        done
 - Use it for two weeks and write down what annoys you              in progress
 
-## Stage 1.5 — Windows (.exe)                              NEXT
-- Windows has different junk: %LOCALAPPDATA%, %TEMP%, browser caches,
-  the Recycle Bin instead of the Trash, no Finder or mdls
-- Same page (index.html), a Windows branch in app.py for the folders and
-  the recycle-bin call
-- The .exe cannot be built on a Mac. Build it with GitHub Actions (free):
-  push the code, GitHub builds Skurra.exe on a Windows machine
-- Publish both downloads and latest.json on GitHub Releases
+## Stage 1.5 — Windows (.exe)                              IN PROGRESS
+- Windows branch in app.py: %LOCALAPPDATA%, %TEMP%, Recycle Bin,
+  installed programs from the registry                              done
+- Code on GitHub (github.com/nafe02/Skurra), GitHub Desktop signed in  done
+- GitHub Actions builds Skurra.exe on a Windows machine, free       done
+- First Skurra.exe built (14 MB, run #1, 2026-09-20)                done
+- A friend tests it on real Windows                                 <- you are here
+- Fix what he finds, rebuild, resend (repeat until it is boring)    next
+- Mac build made universal (Intel + Apple chips) after a tester's
+  "can't be opened" on an Apple-chip Mac                          done
+- Download page with two buttons, GitHub builds both files          done
+- First release: Actions -> Run workflow, enable GitHub Pages       next
 
 ## Costs that never go away
 - Mac notarization: $99/year, else users right-click > Open once
 - Windows code signing: optional, else SmartScreen warns once
 - Everything else (VS Code, Python, PyInstaller, GitHub, GitHub Actions) is free
 
+## Where people get it
+- Download page:  https://nafe02.github.io/Skurra/   (docs/index.html)
+- Mac download:   https://github.com/nafe02/Skurra/releases/latest/download/Skurra.dmg
+- Windows:        https://github.com/nafe02/Skurra/releases/latest/download/Skurra.exe
+These links never change. They always hand out the newest release.
+
 ## How to ship an update
 1. Change `VERSION` at the top of app.py, e.g. "1.1.0"
-2. `zsh build.sh`  -> dist/Skurra.dmg
-3. Upload the .dmg to a GitHub Release
-4. Edit latest.json: same version, the download link, one line of notes
-5. Commit latest.json. Every running Skurra shows the banner on next launch
+2. Edit latest.json: same version, one line of notes
+3. GitHub Desktop: Commit, then Push
+4. GitHub -> Actions -> "Build and release" -> Run workflow
+   (about 6 minutes: builds Skurra.dmg and Skurra.exe, publishes them)
+5. Every running Skurra shows the update banner on its next launch
