@@ -24,17 +24,26 @@ own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 - First Skurra.exe built (14 MB, run #1, 2026-09-20)                done
 - A friend tests it on real Windows                                 <- you are here
 - Fix what he finds, rebuild, resend (repeat until it is boring)    next
-- First proper release: tag v1.0.0 -> .dmg + .exe on GitHub Releases,
-  latest.json points at it, the update banner goes live             next
+- Mac build made universal (Intel + Apple chips) after a tester's
+  "can't be opened" on an Apple-chip Mac                          done
+- Download page with two buttons, GitHub builds both files          done
+- First release: Actions -> Run workflow, enable GitHub Pages       next
 
 ## Costs that never go away
 - Mac notarization: $99/year, else users right-click > Open once
 - Windows code signing: optional, else SmartScreen warns once
 - Everything else (VS Code, Python, PyInstaller, GitHub, GitHub Actions) is free
 
+## Where people get it
+- Download page:  https://nafe02.github.io/Skurra/   (docs/index.html)
+- Mac download:   https://github.com/nafe02/Skurra/releases/latest/download/Skurra.dmg
+- Windows:        https://github.com/nafe02/Skurra/releases/latest/download/Skurra.exe
+These links never change. They always hand out the newest release.
+
 ## How to ship an update
 1. Change `VERSION` at the top of app.py, e.g. "1.1.0"
-2. `zsh build.sh`  -> dist/Skurra.dmg
-3. Upload the .dmg to a GitHub Release
-4. Edit latest.json: same version, the download link, one line of notes
-5. Commit latest.json. Every running Skurra shows the banner on next launch
+2. Edit latest.json: same version, one line of notes
+3. GitHub Desktop: Commit, then Push
+4. GitHub -> Actions -> "Build and release" -> Run workflow
+   (about 6 minutes: builds Skurra.dmg and Skurra.exe, publishes them)
+5. Every running Skurra shows the update banner on its next launch
