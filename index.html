@@ -312,7 +312,8 @@ async function loadBin() {
 }
 
 async function loadLog() {
-  const words = { trashed: WIN ? "removed" : "moved to Trash", cleared: "cleared", emptied: "emptied", failed: "failed" };
+  const words = { trashed: WIN ? "removed" : "moved to Trash", cleared: "cleared",
+                  "partly cleared": "partly cleared", emptied: "emptied", failed: "failed" };
   try {
     const items = await (await fetch("/api/moved")).json();
     $("#meta-log").textContent = items.length ? `${items.length} entr${items.length === 1 ? "y" : "ies"}` : "nothing yet";
@@ -321,7 +322,7 @@ async function loadLog() {
           <div class="logrow ${e.did}">
             <b>${e.name || e.path}${e.where ? ` <span class="why">${e.where}</span>` : ""}</b>
             <span>${e.mb ? size(e.mb) : ""}</span>
-            <span>${e.did === "refused" ? "refused: " + e.why : words[e.did] || e.did}</span>
+            <span>${e.why ? (e.did === "refused" ? "refused" : words[e.did] || e.did) + ": " + e.why : words[e.did] || e.did}</span>
             <span>${e.at.replace("T", " ")}</span>
           </div>`).join("")
       : `<div class="empty">Nothing moved yet. Everything Skurra does to your Mac gets written down here.</div>`;
@@ -419,7 +420,9 @@ function refresh() {
 
 function report(res, verb) {
   let msg = `${verb} ${res.done} of ${res.asked}.`;
-  if (res.failed.length) msg += ` Could not touch ${res.failed.join(", ")}. If it is an app, quit it first.`;
+  if (res.partly && res.partly.length)
+    msg += ` ${res.partly.join(", ")} ${res.partly.length === 1 ? "was" : "were"} only partly cleared — some files are open right now. Quit that app and scan again for the rest.`;
+  if (res.failed.length) msg += ` Could not touch ${res.failed.join(", ")}. Quit it first, then try again.`;
   note(msg);
   $("#warn").textContent = res.refused.length
     ? "Skurra refused " + res.refused.map(r => `${r.name} (${r.why})`).join(", ")
