@@ -77,6 +77,17 @@ for _old in (Path(__file__).parent / "history.csv", Path(__file__).parent / "mov
     if _old.exists() and not (DATA / _old.name).exists():
         shutil.move(str(_old), str(DATA / _old.name))
 
+# When packaged, Windows and macOS unpack the app into a temp folder called
+# _MEIxxxxx. Those are the files Skurra is running from: never offer them.
+OWN = {str(HERE).lower(), str(DATA).lower()}
+
+def is_ours(path):
+    low = str(path).lower()
+    if any(low == o or low.startswith(o + os.sep) for o in OWN):
+        return True
+    return Path(path).name.lower().startswith("_mei")
+
+
 HISTORY = DATA / "history.csv"
 MOVED_LOG = DATA / "moved.log"
 
@@ -330,7 +341,7 @@ def scan():
             continue
         for item in entries:
             low = item.name.lower()
-            if low.startswith("com.apple.") or low in SKIP:
+            if low.startswith("com.apple.") or low in SKIP or is_ours(item):
                 continue
             targets.append((item, folder.name, "cache" if folder == CACHES_DIR else "idle"))
 
@@ -499,6 +510,8 @@ def scan_once():
 
 def allowed(path):
     """Returns (yes_or_no, reason). A path has to clear every gate."""
+    if is_ours(path):
+        return False, "Skurra is running from here"
     if str(path) in uninstallers:
         return True, ""                      # a Windows program, removed by its uninstaller
     try:
@@ -574,21 +587,51 @@ def to_trash(path):
 
 
 def clear(path):
-    """Wipe what is inside a cache folder. The folder itself stays."""
-    ok = True
+    """Empty a cache folder. The folder itself stays.
+
+    Windows locks files that a running program still has open, so a browser
+    cache can rarely be wiped whole while the browser is running. Removing
+    most of it is still worth doing, so this reports what it managed:
+    (bytes freed, files left behind).
+    """
+    freed, stuck = 0, 0
+
+    def size_of(p):
+        try:
+            if os.path.isfile(p):
+                return os.path.getsize(p)
+        except OSError:
+            return 0
+        total = 0
+        for root, dirs, files in os.walk(p, onerror=lambda e: None):
+            for f in files:
+                try:
+                    total += os.path.getsize(os.path.join(root, f))
+                except OSError:
+                    pass
+        return total
+
     try:
         entries = list(os.scandir(path))
     except OSError:
-        return False
+        return 0, -1                      # could not even look inside
+
     for e in entries:
+        if is_ours(e.path):
+            continue
+        before = size_of(e.path)
         try:
             if e.is_dir(follow_symlinks=False):
-                shutil.rmtree(e.path)
+                shutil.rmtree(e.path, onerror=lambda *a: None)
             else:
                 os.unlink(e.path)
         except OSError:
-            ok = False
-    return ok
+            pass
+        after = size_of(e.path) if os.path.exists(e.path) else 0
+        freed += max(0, before - after)
+        if after:
+            stuck += 1
+    return freed, stuck
 
 
 def empty_trash():
@@ -749,7 +792,7 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         wipe = self.path == "/api/clear"
-        done, refused, failed = 0, [], []
+        done, refused, failed, partly = 0, [], [], []
 
         for it in body:
             path = it.get("path", "")
@@ -761,18 +804,35 @@ class Handler(SimpleHTTPRequestHandler):
                 refused.append({"name": name, "why": why})
                 record({"at": stamp, "did": "refused", "path": path, "why": why})
                 continue
-            if (clear if wipe else to_trash)(path):
+            note = dict(at=stamp, path=path, name=it.get("name"), where=it.get("where"),
+                        days=it.get("days"), kind=it.get("kind"), change=it.get("change"))
+            if wipe:
+                freed, stuck = clear(path)
+                note["mb"] = round(freed / 1024 / 1024, 1)
+                if stuck == -1 or (freed == 0 and stuck):
+                    failed.append(name)
+                    note["did"] = "failed"
+                    note["why"] = "in use by a running program"
+                elif stuck:
+                    done += 1
+                    partly.append(name)
+                    note["did"] = "partly cleared"
+                    note["why"] = f"{stuck} still in use"
+                else:
+                    done += 1
+                    note["did"] = "cleared"
+            elif to_trash(path):
                 done += 1
-                record({"at": stamp, "did": "cleared" if wipe else "trashed",
-                        "path": path, "name": it.get("name"), "where": it.get("where"),
-                        "mb": it.get("mb"), "days": it.get("days"),
-                        "kind": it.get("kind"), "change": it.get("change")})
+                note["did"] = "trashed"
+                note["mb"] = it.get("mb")
             else:
                 failed.append(name)
-                record({"at": stamp, "did": "failed", "path": path, "name": name})
+                note["did"] = "failed"
+                note["mb"] = it.get("mb")
+            record(note)
 
-        self.reply({"done": done, "asked": len(body),
-                    "refused": refused, "failed": failed, "bin": bin_state()})
+        self.reply({"done": done, "asked": len(body), "refused": refused,
+                    "failed": failed, "partly": partly, "bin": bin_state()})
 
     def log_message(self, *a):
         pass
