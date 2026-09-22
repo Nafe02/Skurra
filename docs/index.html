@@ -49,7 +49,23 @@ nav.solid {
 .links { display: flex; align-items: center; gap: 26px; font-size: 15px; }
 .links a { text-decoration: none; color: var(--dim); }
 .links a:hover { color: var(--ink); }
-.links a.pill { background: var(--patina); color: var(--paper); font-weight: 600; padding: 9px 18px; border-radius: 99px; }
+.links a.pill {
+  background: var(--patina); color: var(--paper); font-weight: 600; padding: 9px 18px; border-radius: 99px;
+  position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 7px;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.links a.pill:hover { transform: translateY(-1px); filter: brightness(1.06);
+  box-shadow: 0 7px 20px color-mix(in srgb, var(--patina) 45%, transparent); }
+.links a.pill:active { transform: translateY(0); }
+.links a.pill::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-130%);
+  background: linear-gradient(110deg, transparent 25%, rgba(255,255,255,.38) 50%, transparent 75%);
+}
+.links a.pill:hover::after { animation: shine .75s ease; }
+@keyframes shine { to { transform: translateX(130%); } }
+.links a.pill svg { width: 14px; height: 14px; fill: currentColor; }
+.links a.pill:hover svg { animation: nudge .7s ease infinite; }
+@keyframes nudge { 50% { transform: translateY(2px); } }
 @media (max-width: 640px) { .links a:not(.pill) { display: none; } }
 
 /* ---- hero ---- */
@@ -122,6 +138,116 @@ kbd { font: inherit; font-size: 14px; background: var(--paper); border: 1px soli
 footer { padding: 28px; border-top: 1px solid var(--rule); color: var(--dim); font-size: 13px; text-align: center; }
 footer a { color: var(--dim); }
 
+/* ---- laptop walkthrough ---- */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 26px; }
+.tab { font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; padding: 9px 16px;
+       border-radius: 99px; border: 1px solid var(--rule); background: var(--card); color: var(--dim);
+       transition: color .18s, border-color .18s, background .18s; }
+.tab:hover { color: var(--ink); border-color: var(--patina); }
+.tab.on { background: var(--patina); border-color: var(--patina); color: var(--paper); }
+
+.laptop { max-width: 780px; margin: 0 auto; }
+.lid {
+  position: relative; border-radius: 16px 16px 4px 4px; padding: 11px 11px 16px;
+  background: linear-gradient(#3a4446, #232b2d); box-shadow: 0 22px 50px rgba(0,0,0,.34);
+}
+.lid::after { content: ""; position: absolute; left: 50%; bottom: 5px; transform: translateX(-50%);
+              width: 52px; height: 4px; border-radius: 3px; background: rgba(255,255,255,.18); }
+.screen { position: relative; aspect-ratio: 16/10; border-radius: 6px; overflow: hidden;
+          background: #0e1213; }
+.screen video, .screen img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.foot { height: 13px; border-radius: 0 0 14px 14px; margin: 0 auto;
+        background: linear-gradient(#2a3335, #1a2122); width: 112%; max-width: none;
+        margin-left: -6%; box-shadow: 0 10px 18px rgba(0,0,0,.28); }
+.foot::after { content: ""; display: block; width: 90px; height: 5px; border-radius: 0 0 6px 6px;
+               margin: 0 auto; background: rgba(0,0,0,.35); }
+
+.scene { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.scene.on { opacity: 1; }
+.fr { position: absolute; inset: 0; opacity: 0; transform: scale(.985);
+      transition: opacity .45s ease, transform .45s ease; }
+.fr.on { opacity: 1; transform: none; }
+
+/* mock desktop bits, drawn with plain elements */
+.desk { position: absolute; inset: 0; display: grid; place-items: center; padding: 6%;
+        background: radial-gradient(120% 120% at 30% 0%, #1d3b42 0%, #101617 60%); }
+.desk.win { background: radial-gradient(120% 120% at 70% 0%, #17324d 0%, #0d1520 60%); }
+.desk.light { background: linear-gradient(#e7ecea, #cfd8d5); }
+.mwin { width: 100%; max-width: 86%; border-radius: 9px; overflow: hidden; background: var(--card);
+        border: 1px solid rgba(255,255,255,.09); box-shadow: 0 14px 32px rgba(0,0,0,.4); }
+.mbar { display: flex; align-items: center; gap: 5px; padding: 7px 9px; background: #2b3335; }
+.mbar i { width: 8px; height: 8px; border-radius: 50%; background: #4a5456; display: block; }
+.mbar .url { flex: 1; margin-left: 8px; height: 15px; border-radius: 99px; background: #3a4446; }
+.mbody { padding: 12px 14px 16px; font-size: 11px; color: #aab4b1; }
+.mrow { height: 11px; border-radius: 4px; background: #333c3e; margin-bottom: 7px; }
+.mrow.w60 { width: 60%; } .mrow.w40 { width: 40%; } .mrow.w75 { width: 75%; }
+.mbtn { display: inline-block; font-size: 11px; font-weight: 700; padding: 7px 13px; border-radius: 7px;
+        background: var(--patina); color: #10201c; }
+.mbtn.grey { background: #3a4446; color: #cdd6d3; }
+.mbtn.blue { background: #2f6fd0; color: #fff; }
+.mbtn.ghost { background: transparent; border: 1px solid #556062; color: #cdd6d3; }
+.mdlg { width: 74%; max-width: 300px; border-radius: 13px; padding: 17px 16px 14px; text-align: center;
+        background: #262c2e; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 18px 40px rgba(0,0,0,.5);
+        font-size: 11px; color: #d6dedb; }
+.mdlg.blue { background: #10508f; border-color: rgba(255,255,255,.18); color: #eaf2fb; text-align: left; }
+.mdlg b { display: block; font-size: 13px; margin: 8px 0 5px; color: #fff; }
+.mdlg .warn { width: 34px; height: 34px; margin: 0 auto; border-radius: 50%; background: #e0b35a;
+              display: grid; place-items: center; color: #1a1408; font-weight: 800; }
+.mdlg .stack { display: flex; flex-direction: column; gap: 6px; margin-top: 11px; }
+.term { width: 88%; border-radius: 9px; overflow: hidden; background: #0c1011; border: 1px solid #2b3436;
+        box-shadow: 0 14px 32px rgba(0,0,0,.45); }
+.term .mbar { background: #1b2223; }
+.term pre { margin: 0; padding: 12px 13px; font: 10px/1.75 ui-monospace, Menlo, monospace;
+            color: #9fd8c7; white-space: pre-wrap; word-break: break-all; }
+.term .out { color: #8d9794; }
+.spot { width: 70%; max-width: 330px; display: flex; align-items: center; gap: 9px; padding: 11px 14px;
+        border-radius: 11px; background: rgba(40,46,48,.96); border: 1px solid rgba(255,255,255,.12);
+        box-shadow: 0 18px 40px rgba(0,0,0,.5); font-size: 13px; color: #e9eeec; }
+.icons { display: flex; align-items: center; justify-content: center; gap: 12%; width: 100%; }
+.ic-file { text-align: center; font-size: 10px; color: #cdd6d3; }
+.ic-file .sq { width: 46px; height: 46px; border-radius: 11px; margin: 0 auto 6px;
+               background: linear-gradient(#2c3537, #1d2425); border: 1px solid rgba(255,255,255,.12);
+               display: grid; place-items: center; }
+.ic-file .sq svg { width: 26px; height: 26px; }
+.arrow { flex: none; color: var(--patina); font-size: 20px; animation: slide 1.6s ease-in-out infinite; }
+@keyframes slide { 50% { transform: translateX(7px); } }
+.cursor { position: absolute; width: 15px; height: 15px; pointer-events: none;
+          filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.tap { animation: tap 1.5s ease-in-out infinite; }
+@keyframes tap { 45% { transform: scale(.82); } 55% { transform: scale(.82); } }
+.bar { height: 5px; border-radius: 99px; background: #333c3e; overflow: hidden; margin-top: 9px; }
+.bar i { display: block; height: 100%; background: var(--patina); width: 0; animation: fill 2.4s ease forwards; }
+@keyframes fill { to { width: 100%; } }
+.skapp { width: 88%; border-radius: 9px; overflow: hidden; background: #1a2021; border: 1px solid #2b3436;
+         box-shadow: 0 14px 32px rgba(0,0,0,.45); }
+.skapp .top { display: flex; align-items: center; gap: 8px; padding: 9px 11px; background: #222a2b; }
+.skapp .top b { font-size: 11px; color: #e9eeec; }
+.skapp .in { padding: 11px 12px 14px; display: flex; gap: 11px; align-items: center; }
+.skapp .ring { width: 54px; height: 54px; flex: none; border-radius: 50%;
+               background: conic-gradient(var(--patina) 0 62%, #303a3b 62% 100%); position: relative; }
+.skapp .ring::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: #1a2021; }
+.skapp .list { flex: 1; }
+.cap { text-align: center; color: var(--dim); font-size: 14px; margin: 18px auto 0; max-width: 520px; min-height: 42px; }
+.cap b { color: var(--ink); font-weight: 600; }
+.dots { display: flex; justify-content: center; gap: 7px; margin-top: 4px; }
+.dots button { width: 7px; height: 7px; padding: 0; border-radius: 50%; cursor: pointer;
+               border: none; background: var(--rule); transition: background .2s, transform .2s; }
+.dots button.on { background: var(--patina); transform: scale(1.35); }
+@media (max-width: 620px) {
+  .cap { font-size: 13px; }
+  .mbody, .spot { font-size: 9px; }
+  .mdlg { font-size: 9px; padding: 11px 11px 9px; width: 66%; }
+  .mdlg b { font-size: 11px; margin: 6px 0 4px; }
+  .mdlg .warn { width: 24px; height: 24px; font-size: 11px; }
+  .mdlg .stack { gap: 4px; margin-top: 8px; }
+  .mbtn { font-size: 9px; padding: 5px 9px; }
+  .mrow { height: 8px; margin-bottom: 5px; }
+  .term pre { font-size: 7.5px; padding: 8px 9px; }
+  .ic-file .sq { width: 32px; height: 32px; }
+  .skapp .ring { width: 38px; height: 38px; }
+  .cursor { width: 11px; height: 11px; }
+}
+
 /* ---- scroll reveal ---- */
 .reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s ease; }
 .reveal.in { opacity: 1; transform: none; }
@@ -147,9 +273,9 @@ footer a { color: var(--dim); }
   </a>
   <div class="links">
     <a href="#how">How it works</a>
-    <a href="#install">Installing</a>
+    <a href="#watch">Installing</a>
     <a href="https://github.com/nafe02/Skurra">GitHub</a>
-    <a class="pill" href="#download">Download</a>
+    <a class="pill" href="#download"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Download</a>
   </div>
 </nav>
 
@@ -251,6 +377,123 @@ footer a { color: var(--dim); }
   </div>
 </section>
 
+
+<section id="watch">
+  <div class="wrap">
+    <h2 class="reveal">Watch it install</h2>
+    <p class="sub reveal d1">Three ways in. Pick yours and follow along — each step is the screen you will actually see.</p>
+
+    <div class="tabs reveal d1" role="tablist">
+      <button class="tab on" data-scene="term" type="button">Mac — one line</button>
+      <button class="tab" data-scene="dmg" type="button">Mac — download button</button>
+      <button class="tab" data-scene="win" type="button">Windows</button>
+    </div>
+
+    <div class="laptop reveal d2">
+      <div class="lid">
+        <div class="screen" id="screen">
+
+          <!-- Mac, one line -->
+          <div class="scene on" id="sc-term">
+            <div class="fr" data-cap="Press <b>&#8984; Space</b> and type <b>Terminal</b>.">
+              <div class="desk"><div class="spot">&#128269;&nbsp; Terminal</div></div>
+            </div>
+            <div class="fr" data-cap="Paste the one line from this page and press <b>Return</b>.">
+              <div class="desk"><div class="term"><div class="mbar"><i></i><i></i><i></i></div>
+                <pre>~ % curl -fsSL https://nafe02.github.io/Skurra/install.sh | bash<span style="opacity:.6">&#9611;</span></pre></div></div>
+            </div>
+            <div class="fr" data-cap="It downloads Skurra and copies it into Applications.">
+              <div class="desk"><div class="term"><div class="mbar"><i></i><i></i><i></i></div>
+                <pre class="out">Skurra &#8212; downloading the newest version...
+#################################  84%
+Copying Skurra into /Applications...</pre></div></div>
+            </div>
+            <div class="fr" data-cap="Skurra opens by itself. <b>No warnings, nothing to click.</b>">
+              <div class="desk"><div class="skapp"><div class="top"><svg style="width:14px;height:14px" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#6bbfa8" stroke-width="6" stroke-dasharray="52 18" stroke-linecap="round" transform="rotate(-90 16 16)"/></svg><b>Skurra</b></div><div class="in"><div class="ring"></div><div class="list"><div class="mrow w75"></div><div class="mrow w60"></div><div class="mrow w40"></div></div></div></div></div>
+            </div>
+          </div>
+
+          <!-- Mac, download button -->
+          <div class="scene" id="sc-dmg">
+            <div class="fr" data-cap="Click <b>Download for Mac</b> on this page.">
+              <div class="desk"><div class="mwin"><div class="mbar"><i></i><i></i><i></i><span class="url"></span></div>
+                <div class="mbody"><div class="mrow w60"></div><div class="mrow w40"></div>
+                  <div style="margin-top:11px"><span class="mbtn">Download for Mac</span>
+                    <span class="mbtn grey">Download for Windows</span></div></div></div>
+                <svg class="cursor tap" style="left:62%;top:63%" viewBox="0 0 24 24"><path d="M5 2l14 10-6 1 3.5 6.5-2.6 1.4L10.5 14 5 18z" fill="#fff" stroke="#111" stroke-width="1.2"/></svg><span></span></div>
+            </div>
+            <div class="fr" data-cap="Open the downloaded file and drag Skurra onto <b>Applications</b>.">
+              <div class="desk"><div class="mwin"><div class="mbar"><i></i><i></i><i></i></div>
+                <div class="mbody"><div class="icons">
+                  <div class="ic-file"><div class="sq"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#6bbfa8" stroke-width="6" stroke-dasharray="52 18" stroke-linecap="round" transform="rotate(-90 16 16)"/></svg></div>Skurra</div>
+                  <span class="arrow">&#10230;</span>
+                  <div class="ic-file"><div class="sq" style="background:linear-gradient(#2f6b5e,#24524a)">&#128193;</div>Applications</div>
+                </div></div></div></div>
+            </div>
+            <div class="fr" data-cap="macOS checks with you once. Click <b>Done</b> &#8212; not Move to Trash.">
+              <div class="desk"><div class="mdlg"><div class="warn">!</div>
+                <b>&#8220;Skurra&#8221; Not Opened</b>
+                Apple could not verify &#8220;Skurra&#8221; is free of malware.
+                <div class="stack"><span class="mbtn blue">Move to Trash</span><span class="mbtn ghost">Done</span></div></div>
+                <svg class="cursor tap" style="left:57%;top:70%" viewBox="0 0 24 24"><path d="M5 2l14 10-6 1 3.5 6.5-2.6 1.4L10.5 14 5 18z" fill="#fff" stroke="#111" stroke-width="1.2"/></svg></div>
+            </div>
+            <div class="fr" data-cap="Go to <b>System Settings &#8594; Privacy &amp; Security</b>, scroll down, click <b>Open Anyway</b>.">
+              <div class="desk"><div class="mwin"><div class="mbar"><i></i><i></i><i></i><span class="url"></span></div>
+                <div class="mbody"><div class="mrow w40"></div><div class="mrow w75"></div>
+                  <div style="display:flex;align-items:center;gap:9px;margin-top:11px">
+                    <span style="flex:1">&#8220;Skurra&#8221; was blocked to protect your Mac.</span>
+                    <span class="mbtn">Open Anyway</span></div></div></div>
+                <svg class="cursor tap" style="left:70%;top:62%" viewBox="0 0 24 24"><path d="M5 2l14 10-6 1 3.5 6.5-2.6 1.4L10.5 14 5 18z" fill="#fff" stroke="#111" stroke-width="1.2"/></svg></div>
+            </div>
+            <div class="fr" data-cap="That was the last time. Skurra opens normally from now on.">
+              <div class="desk"><div class="skapp"><div class="top"><svg style="width:14px;height:14px" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#6bbfa8" stroke-width="6" stroke-dasharray="52 18" stroke-linecap="round" transform="rotate(-90 16 16)"/></svg><b>Skurra</b></div><div class="in"><div class="ring"></div><div class="list"><div class="mrow w75"></div><div class="mrow w60"></div><div class="mrow w40"></div></div></div></div></div>
+            </div>
+          </div>
+
+          <!-- Windows -->
+          <div class="scene" id="sc-win">
+            <div class="fr" data-cap="Click <b>Download for Windows</b> on this page.">
+              <div class="desk win"><div class="mwin"><div class="mbar"><i></i><i></i><i></i><span class="url"></span></div>
+                <div class="mbody"><div class="mrow w60"></div><div class="mrow w40"></div>
+                  <div style="margin-top:11px"><span class="mbtn">Download for Windows</span>
+                    <span class="mbtn grey">Download for Mac</span></div></div></div>
+                <svg class="cursor tap" style="left:62%;top:63%" viewBox="0 0 24 24"><path d="M5 2l14 10-6 1 3.5 6.5-2.6 1.4L10.5 14 5 18z" fill="#fff" stroke="#111" stroke-width="1.2"/></svg><span></span></div>
+            </div>
+            <div class="fr" data-cap="Open your Downloads folder and double-click <b>Skurra.exe</b>.">
+              <div class="desk win"><div class="mwin"><div class="mbar"><i></i><i></i><i></i></div>
+                <div class="mbody"><div class="icons"><div class="ic-file"><div class="sq"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#6bbfa8" stroke-width="6" stroke-dasharray="52 18" stroke-linecap="round" transform="rotate(-90 16 16)"/></svg></div>Skurra.exe</div></div></div></div>
+                <svg class="cursor tap" style="left:52%;top:57%" viewBox="0 0 24 24"><path d="M5 2l14 10-6 1 3.5 6.5-2.6 1.4L10.5 14 5 18z" fill="#fff" stroke="#111" stroke-width="1.2"/></svg></div>
+            </div>
+            <div class="fr" data-cap="Windows checks with you once. Click <b>More info</b>.">
+              <div class="desk win"><div class="mdlg blue">
+                <b>Windows protected your PC</b>
+                Microsoft Defender SmartScreen prevented an unrecognised app from starting.
+                <div style="margin-top:10px"><span class="mbtn ghost" style="border-color:#8fb6e4;color:#eaf2fb">More info</span></div></div>
+                <svg class="cursor tap" style="left:57%;top:70%" viewBox="0 0 24 24"><path d="M5 2l14 10-6 1 3.5 6.5-2.6 1.4L10.5 14 5 18z" fill="#fff" stroke="#111" stroke-width="1.2"/></svg></div>
+            </div>
+            <div class="fr" data-cap="Then click <b>Run anyway</b>. You only do this once.">
+              <div class="desk win"><div class="mdlg blue">
+                <b>Windows protected your PC</b>
+                App: Skurra.exe &#183; Publisher: Unknown
+                <div style="margin-top:10px"><span class="mbtn" style="background:#eaf2fb;color:#10508f">Run anyway</span>
+                  <span class="mbtn ghost" style="border-color:#8fb6e4;color:#eaf2fb">Don&#8217;t run</span></div></div>
+                <svg class="cursor tap" style="left:70%;top:62%" viewBox="0 0 24 24"><path d="M5 2l14 10-6 1 3.5 6.5-2.6 1.4L10.5 14 5 18z" fill="#fff" stroke="#111" stroke-width="1.2"/></svg></div>
+            </div>
+            <div class="fr" data-cap="Skurra opens, with Windows folders and the Recycle Bin.">
+              <div class="desk win"><div class="skapp"><div class="top"><svg style="width:14px;height:14px" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#6bbfa8" stroke-width="6" stroke-dasharray="52 18" stroke-linecap="round" transform="rotate(-90 16 16)"/></svg><b>Skurra</b></div><div class="in"><div class="ring"></div><div class="list"><div class="mrow w75"></div><div class="mrow w60"></div><div class="mrow w40"></div></div></div></div></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="foot"></div>
+    </div>
+
+    <p class="cap" id="cap"></p>
+    <div class="dots" id="dots"></div>
+  </div>
+</section>
+
 <section class="alt-bg">
   <div class="wrap" style="text-align:center">
     <h2 class="reveal">Ready when you are</h2>
@@ -287,6 +530,47 @@ function detectOS() {
   return "other";
 }
 arrangeFor(detectOS());
+
+// ---- laptop walkthrough: step through the frames of the chosen scene ----
+const scenes = {}, tabs = [...document.querySelectorAll(".tab")];
+for (const el of document.querySelectorAll(".scene")) scenes[el.id.slice(3)] = [...el.querySelectorAll(".fr")];
+const capEl = document.getElementById("cap"), dotsEl = document.getElementById("dots");
+const slow = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let scene = "term", step = 0, timer = null, watching = true;
+
+function show(i) {
+  const frames = scenes[scene];
+  step = (i + frames.length) % frames.length;
+  frames.forEach((f, n) => f.classList.toggle("on", n === step));
+  capEl.innerHTML = frames[step].dataset.cap;
+  [...dotsEl.children].forEach((d, n) => d.classList.toggle("on", n === step));
+}
+function build() {
+  dotsEl.innerHTML = "";
+  scenes[scene].forEach((_, n) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.setAttribute("aria-label", `Step ${n + 1}`);
+    b.onclick = () => { show(n); restart(); };
+    dotsEl.appendChild(b);
+  });
+  show(0);
+}
+function restart() {
+  clearInterval(timer);
+  if (slow || !watching) return;
+  timer = setInterval(() => show(step + 1), 3400);
+}
+function pick(name) {
+  scene = name;
+  for (const el of document.querySelectorAll(".scene")) el.classList.toggle("on", el.id === "sc-" + name);
+  tabs.forEach(t => t.classList.toggle("on", t.dataset.scene === name));
+  build(); restart();
+}
+tabs.forEach(t => t.onclick = () => pick(t.dataset.scene));
+// only run while the laptop is on screen
+new IntersectionObserver(es => es.forEach(e => { watching = e.isIntersecting; restart(); }),
+  { threshold: 0.25 }).observe(document.getElementById("screen"));
+pick("term");
 
 // ---- copy the one-line installer ----
 const copyBtn = document.getElementById("copy");
