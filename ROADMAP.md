@@ -1,6 +1,6 @@
 # Skurra roadmap
 
-Updated 2026-09-22. Android and iPhone stages were dropped: Android 16 shut off
+Updated 2026-09-23. Android and iPhone stages were dropped: Android 16 shut off
 cache clearing for third-party apps, and iPhone apps cannot see outside their
 own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 
@@ -29,7 +29,10 @@ own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 - First release v1.0.0 published: Skurra.dmg + Skurra.exe          done
 - Download page live at nafe02.github.io/Skurra: sticky nav, live
   disk chart, picks Mac or Windows button for the visitor           done
-- Windows tester feedback, fix, rebuild, resend                     <- you are here
+- Windows tester feedback, fix, rebuild, resend                     ongoing
+- Disk space view: browse any folder in Home, see what is inside by
+  kind, drill in, tick files, send them to the Trash                 done
+- Keep testing on both platforms                                    <- you are here
 
 ## Costs that never go away
 - Mac notarization: $99/year, else users right-click > Open once

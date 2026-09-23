@@ -17,6 +17,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 import webbrowser
 from functools import partial
@@ -70,6 +71,35 @@ else:
     TRASH = HOME / ".Trash"
 
 FOLDERS = APPDATA_DIRS + [CACHES_DIR]
+
+# ---------------------------------------------------------------- disk view
+
+# The places worth looking through. Everything here belongs to the user.
+def disk_roots():
+    names = ["Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music"]
+    if WINDOWS:
+        names = ["Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music"]
+    out = [HOME / n for n in names if (HOME / n).is_dir()]
+    return [HOME] + out
+
+KINDS = {
+    "video":    {".mp4", ".mov", ".avi", ".mkv", ".m4v", ".wmv", ".webm", ".mpg", ".mpeg"},
+    "audio":    {".mp3", ".m4a", ".wav", ".aac", ".flac", ".aiff", ".ogg", ".wma"},
+    "image":    {".jpg", ".jpeg", ".png", ".gif", ".heic", ".tiff", ".tif", ".bmp",
+                 ".raw", ".cr2", ".nef", ".webp", ".svg", ".psd", ".ai"},
+    "document": {".pdf", ".doc", ".docx", ".pages", ".txt", ".rtf", ".xls", ".xlsx",
+                 ".numbers", ".ppt", ".pptx", ".key", ".csv", ".md", ".epub"},
+    "archive":  {".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".dmg", ".iso", ".pkg", ".exe", ".msi"},
+    "code":     {".py", ".js", ".ts", ".html", ".css", ".java", ".c", ".cpp", ".go",
+                 ".rs", ".rb", ".php", ".json", ".xml", ".sh", ".swift"},
+}
+KIND_OF = {ext: kind for kind, exts in KINDS.items() for ext in exts}
+
+
+def kind_of(path, is_dir):
+    if is_dir:
+        return "folder"
+    return KIND_OF.get(Path(path).suffix.lower(), "other")
 
 # Where Skurra keeps its own notes. Never inside the app bundle.
 DATA.mkdir(parents=True, exist_ok=True)
@@ -528,6 +558,110 @@ def scan_once():
         return last_scan
 
 
+# ---------------------------------------------------------------- disk walk
+
+explore_progress = {"done": 0, "total": 1, "where": ""}
+explore_lock = threading.Lock()
+
+
+def folder_size(path, deadline=None):
+    """Bytes inside a folder, and how many files. Gives up at the deadline."""
+    total, count = 0, 0
+    for root, dirs, files in os.walk(path, onerror=lambda e: None):
+        dirs[:] = [d for d in dirs if d.lower() not in SKIP and not is_ours(os.path.join(root, d))]
+        if deadline and time.time() > deadline:
+            break
+        for f in files:
+            try:
+                total += os.path.getsize(os.path.join(root, f))
+                count += 1
+            except OSError:
+                pass
+    return total, count
+
+
+def explore(path):
+    """Everything one level inside a folder, each with its true size."""
+    p = Path(path)
+    try:
+        entries = [e for e in os.scandir(p)
+                   if not e.name.startswith(".")
+                   and e.name.lower() not in SKIP
+                   and not is_ours(e.path)]
+    except OSError as e:
+        return {"error": str(e), "path": str(p), "items": []}
+
+    explore_progress.update(done=0, total=max(1, len(entries)), where=p.name or str(p))
+    items = []
+    for n, e in enumerate(entries):
+        explore_progress["done"] = n
+        try:
+            is_dir = e.is_dir(follow_symlinks=False)
+        except OSError:
+            continue
+        try:
+            if is_dir:
+                size, files = folder_size(e.path, deadline=time.time() + ITEM_LIMIT)
+            else:
+                size, files = e.stat(follow_symlinks=False).st_size, 1
+            touched = e.stat(follow_symlinks=False).st_mtime
+        except OSError:
+            continue
+        items.append({
+            "name": e.name,
+            "path": e.path,
+            "dir": is_dir,
+            "kind": kind_of(e.path, is_dir),
+            "mb": round(size / 1024 / 1024, 1),
+            "files": files,
+            "days": int((time.time() - touched) / 86400) if touched else 0,
+        })
+    explore_progress["done"] = explore_progress["total"]
+
+    items.sort(key=lambda r: r["mb"], reverse=True)
+    totals = {}
+    for it in items:
+        k = "folder" if it["dir"] else it["kind"]
+        totals[k] = round(totals.get(k, 0) + it["mb"], 1)
+
+    parent = str(p.parent) if p != Path(p.anchor) and p != HOME else ""
+    crumbs = []
+    walk = p
+    while True:
+        crumbs.append({"name": "Home" if walk == HOME else (walk.name or str(walk)), "path": str(walk)})
+        if walk == HOME or walk == Path(walk.anchor) or len(crumbs) > 12:
+            break
+        walk = walk.parent
+    crumbs.reverse()
+
+    return {"path": str(p), "parent": parent, "crumbs": crumbs,
+            "items": items, "totals": totals,
+            "mb": round(sum(i["mb"] for i in items), 1)}
+
+
+def explore_once(path):
+    if explore_lock.acquire(blocking=False):
+        try:
+            return explore(path)
+        finally:
+            explore_lock.release()
+    with explore_lock:
+        return explore(path)
+
+
+def inside_home(path):
+    """True when a path really sits inside the user's own folder."""
+    try:
+        p = Path(path).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return False
+    try:
+        p.relative_to(HOME.resolve())
+    except ValueError:
+        return False
+    return p != HOME.resolve()
+
+
 # ---------------------------------------------------------------- safety
 
 def allowed(path):
@@ -569,6 +703,14 @@ def allowed(path):
             if is_apple(p):
                 return False, "an Apple app"
             return True, ""
+
+    # Anything of the user's own, inside their home folder. Trash only.
+    if inside_home(p):
+        if p in [r.resolve() for r in disk_roots()]:
+            return False, "that is a whole folder like Documents"
+        if any(str(p).lower().startswith(str(d.resolve()).lower() + os.sep) for d in APPDATA_DIRS):
+            return False, "app data, use the App data list"
+        return True, ""
 
     return False, "not somewhere Skurra scans"
 
@@ -798,6 +940,17 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply(bin_state())
         elif self.path == "/api/update":
             self.reply(check_update())
+        elif self.path == "/api/roots":
+            self.reply([{"name": "Home" if r == HOME else r.name, "path": str(r)} for r in disk_roots()])
+        elif self.path.startswith("/api/explore"):
+            q = urllib.parse.urlparse(self.path).query
+            want = urllib.parse.parse_qs(q).get("path", [str(HOME)])[0]
+            if not (want == str(HOME) or inside_home(want)):
+                self.reply({"error": "outside your home folder", "items": []})
+                return
+            self.reply(explore_once(want))
+        elif self.path == "/api/exploring":
+            self.reply(explore_progress)
         else:
             super().do_GET()
 

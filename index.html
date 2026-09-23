@@ -123,6 +123,48 @@ h3.important { color: #b5643d; }
 .logrow b { font-weight: 400; color: var(--ink); flex: 1; }
 .logrow.refused b { color: var(--dim); text-decoration: line-through; }
 .warn { color: var(--patina); font-size: 13px; margin: 10px 0 0; }
+/* ---- disk view ---- */
+.views { display: flex; gap: 6px; margin-bottom: var(--step); }
+.view { font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; padding: 8px 16px;
+        border-radius: 99px; border: 1px solid var(--rule); background: var(--card); color: var(--dim); }
+.view.on { background: var(--patina); border-color: var(--patina); color: var(--paper); }
+.view:hover:not(.on) { color: var(--ink); }
+.disk { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
+@media (max-width: 820px) { .disk { grid-template-columns: 1fr; } }
+.roots { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.root { font: inherit; font-size: 13px; cursor: pointer; padding: 6px 12px; border-radius: 8px;
+        border: 1px solid var(--rule); background: var(--card); color: var(--dim); }
+.root.on { color: var(--ink); border-color: var(--patina); }
+.crumbs { display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+          font-size: 13px; color: var(--dim); margin-bottom: 10px; }
+.crumbs button { font: inherit; font-size: 13px; cursor: pointer; border: none; background: none;
+                 color: var(--patina); padding: 2px 3px; }
+.crumbs span { opacity: .5; }
+.frow { position: relative; display: flex; align-items: center; gap: 11px; padding: 9px 12px;
+        border-radius: 9px; background: var(--card); margin-bottom: 4px; overflow: hidden; }
+.frow .fill { position: absolute; inset: 0 auto 0 0; opacity: .13; }
+.frow > *:not(.fill) { position: relative; }
+.frow input { width: 16px; height: 16px; accent-color: var(--patina); cursor: pointer; flex: none; }
+.frow .nm { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; cursor: default; }
+.frow .nm b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frow.isdir .nm { cursor: pointer; }
+.frow.isdir .nm:hover b { color: var(--patina); }
+.frow .sz { font-weight: 500; font-size: 14px; }
+.frow .ag { color: var(--dim); font-size: 12px; width: 78px; text-align: right; white-space: nowrap; }
+.dot2 { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.panel { background: var(--card); border: 1px solid var(--rule); border-radius: var(--round);
+         padding: 16px; position: sticky; top: 12px; }
+.panel h4 { margin: 0 0 12px; font-size: 14px; }
+.sun { width: 100%; aspect-ratio: 1; display: block; }
+.sun path { cursor: pointer; transition: opacity .15s; }
+.sun path:hover { opacity: .75; }
+.sunmid { text-anchor: middle; }
+.sunmid .big { font-size: 22px; font-weight: 600; fill: var(--ink); }
+.sunmid .sm { font-size: 10px; fill: var(--dim); }
+.keys { margin-top: 12px; font-size: 12px; }
+.keys div { display: flex; align-items: center; gap: 7px; padding: 3px 0; color: var(--dim); }
+.keys b { margin-left: auto; color: var(--ink); font-weight: 500; }
+.empty2 { color: var(--dim); font-size: 13px; padding: 20px 4px; text-align: center; }
 .foot { margin-top: var(--step); padding-top: var(--step);
         border-top: 1px solid var(--rule); color: var(--dim); font-size: 13px; }
 .bin {
@@ -164,6 +206,11 @@ h3.important { color: #b5643d; }
   </div>
   <p class="note" id="note"></p>
 
+  <div class="views" id="views">
+    <button class="view on" data-view="clean" type="button">Clean up</button>
+    <button class="view" data-view="disk" type="button">Disk space</button>
+  </div>
+
   <div class="loader" id="loader">
     <svg viewBox="0 0 96 96" class="ring">
       <circle class="track" cx="48" cy="48" r="36"/>
@@ -194,6 +241,19 @@ h3.important { color: #b5643d; }
         <div id="list-app"></div>
       </div>
     </details>
+  </div>
+
+  <div class="disk" id="diskview" hidden>
+    <div>
+      <div class="roots" id="roots"></div>
+      <div class="crumbs" id="crumbs"></div>
+      <div id="flist"></div>
+    </div>
+    <div class="panel">
+      <h4>What is in here</h4>
+      <svg class="sun" id="sun" viewBox="0 0 200 200"></svg>
+      <div class="keys" id="keys"></div>
+    </div>
   </div>
 
   <div class="bin" id="bin">
@@ -430,9 +490,147 @@ function report(res, verb) {
   loadLog();
 }
 
+// ---------------------------------------------------------------- disk space
+
+const KIND_COLOUR = {
+  folder: "#6bbfa8", video: "#d98a9e", image: "#e0b35a", audio: "#8fa8d8",
+  document: "#7fc4b0", archive: "#c98f6b", code: "#9d8fd8", other: "#7c8b88",
+};
+let here = null, dirRows = [];
+const dpick = new Set();
+
+function arc(cx, cy, r0, r1, a0, a1) {
+  const pt = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const big = a1 - a0 > Math.PI ? 1 : 0;
+  const [x0, y0] = pt(r1, a0), [x1, y1] = pt(r1, a1), [x2, y2] = pt(r0, a1), [x3, y3] = pt(r0, a0);
+  return `M${x0} ${y0}A${r1} ${r1} 0 ${big} 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 ${big} 0 ${x3} ${y3}Z`;
+}
+
+function drawSun(data) {
+  const sun = $("#sun"), keys = $("#keys");
+  const items = data.items.filter(i => i.mb > 0);
+  if (!items.length) {
+    sun.innerHTML = `<text class="sunmid big" x="100" y="105">empty</text>`;
+    keys.innerHTML = ""; return;
+  }
+  const total = items.reduce((a, i) => a + i.mb, 0);
+  const byKind = {};
+  for (const i of items) {
+    const k = i.dir ? "folder" : i.kind;
+    (byKind[k] = byKind[k] || []).push(i);
+  }
+  let out = "", a = -Math.PI / 2;
+  const order = Object.entries(byKind).sort((x, y) =>
+        y[1].reduce((s, i) => s + i.mb, 0) - x[1].reduce((s, i) => s + i.mb, 0));
+  for (const [kind, list] of order) {
+    const sum = list.reduce((s, i) => s + i.mb, 0);
+    const span = sum / total * Math.PI * 2;
+    out += `<path d="${arc(100, 100, 44, 62, a, a + span)}" fill="${KIND_COLOUR[kind]}" opacity=".55"><title>${kind} · ${size(sum)}</title></path>`;
+    let b = a;
+    const shown = list.slice(0, 14);
+    shown.forEach((i, n) => {
+      const sp = i.mb / total * Math.PI * 2;
+      // step the brightness along the ring so neighbours stay apart
+      const shade = 1 - (n % 4) * 0.13;
+      out += `<path d="${arc(100, 100, 64, 92, b, b + sp)}" fill="${KIND_COLOUR[kind]}"
+        style="filter:brightness(${shade})" stroke="var(--card)" stroke-width=".6"
+        data-go="${i.dir ? i.path : ""}"><title>${i.name} · ${size(i.mb)}</title></path>`;
+      b += sp;
+    });
+    a += span;
+  }
+  out += `<text class="sunmid big" x="100" y="98">${size(total)}</text>`;
+  out += `<text class="sunmid sm" x="100" y="114">${data.items.length} items</text>`;
+  sun.innerHTML = out;
+  for (const path of sun.querySelectorAll("path[data-go]")) {
+    if (path.dataset.go) path.onclick = () => openDir(path.dataset.go);
+  }
+  keys.innerHTML = order.map(([k, l]) => [k, l.reduce((s, i) => s + i.mb, 0)])
+    .map(([k, mb]) => `<div><i class="dot2" style="background:${KIND_COLOUR[k]}"></i>${k}<b>${size(mb)}</b></div>`).join("");
+}
+
+function drawDisk(data) {
+  here = data;
+  dirRows = data.items;
+  $("#crumbs").innerHTML = data.crumbs.map((c, n) =>
+    `${n ? '<span>\u203a</span>' : ''}<button type="button" data-p="${c.path}">${c.name}</button>`).join("");
+  for (const b of $("#crumbs").querySelectorAll("button")) b.onclick = () => openDir(b.dataset.p);
+
+  const biggest = data.items.length ? Math.max(...data.items.map(i => i.mb)) : 1;
+  $("#flist").innerHTML = data.items.length ? data.items.map(i => {
+    const c = KIND_COLOUR[i.dir ? "folder" : i.kind];
+    const w = Math.max(2, Math.round(i.mb / biggest * 100));
+    const age = i.days === 0 ? "today" : i.days === 1 ? "yesterday" : i.days + " days ago";
+    return `<div class="frow ${i.dir ? "isdir" : ""}">
+      <span class="fill" style="width:${w}%;background:${c}"></span>
+      <input type="checkbox" data-path="${i.path}" ${dpick.has(i.path) ? "checked" : ""}>
+      <span class="nm" data-go="${i.dir ? i.path : ""}"><i class="dot2" style="background:${c}"></i>
+        <b>${i.name}</b>${i.dir ? `<em style="font-style:normal;color:var(--dim);font-size:12px">${i.files} files</em>` : ""}</span>
+      <span class="sz">${size(i.mb)}</span>
+      <span class="ag">${age}</span>
+    </div>`;
+  }).join("") : `<div class="empty2">${data.error ? "Could not read this folder: " + data.error : "Nothing in here."}</div>`;
+
+  for (const nm of $("#flist").querySelectorAll(".nm[data-go]")) {
+    if (nm.dataset.go) nm.onclick = () => openDir(nm.dataset.go);
+  }
+  for (const box of $("#flist").querySelectorAll("input")) {
+    box.onchange = () => { box.checked ? dpick.add(box.dataset.path) : dpick.delete(box.dataset.path); refreshDisk(); };
+  }
+  drawSun(data);
+  refreshDisk();
+}
+
+async function openDir(path) {
+  busy(true, "Measuring this folder. Big ones take a moment.", "Measuring");
+  try {
+    const d = await (await fetch("/api/explore?path=" + encodeURIComponent(path))).json();
+    await finish(); busy(false);
+    drawDisk(d);
+  } catch (e) { busy(false); note("Could not read that folder."); }
+}
+
+function refreshDisk() {
+  const picked = dirRows.filter(i => dpick.has(i.path));
+  const mb = picked.reduce((a, i) => a + i.mb, 0);
+  $("#trash").disabled = !picked.length;
+  $("#trash").innerHTML = (WIN ? "Move to Recycle Bin" : "Move to Trash") +
+    (picked.length ? ` <span class="count">(${picked.length} \u00b7 ${size(mb)})</span>` : "");
+  note(picked.length ? `${picked.length} selected, ${size(mb)}.`
+                     : `${here ? size(here.mb) : ""} in this folder. Tick what you no longer need.`);
+}
+
+async function showDisk() {
+  const roots = await (await fetch("/api/roots")).json();
+  $("#roots").innerHTML = roots.map(r =>
+    `<button class="root" type="button" data-p="${r.path}">${r.name}</button>`).join("");
+  for (const b of $("#roots").querySelectorAll(".root")) {
+    b.onclick = () => { for (const o of $("#roots").children) o.classList.remove("on");
+                        b.classList.add("on"); openDir(b.dataset.p); };
+  }
+  const first = $("#roots").children[Math.min(3, roots.length - 1)];
+  first.classList.add("on");
+  openDir(first.dataset.p);
+}
+
+let view = "clean";
+for (const b of document.querySelectorAll(".view")) {
+  b.onclick = () => {
+    view = b.dataset.view;
+    for (const o of document.querySelectorAll(".view")) o.classList.toggle("on", o === b);
+    $("#out").hidden = view !== "clean";
+    $("#diskview").hidden = view !== "disk";
+    $("#pick").hidden = view === "disk";
+    $("#clear").hidden = view === "disk";
+    $("#scan").textContent = view === "disk" ? "Refresh" : "Scan";
+    if (view === "disk") { if (!here) showDisk(); else { drawDisk(here); } }
+    else { dpick.clear(); rows.length ? draw() : note(""); }
+  };
+}
+
 // ---------------------------------------------------------------- actions
 
-$("#scan").onclick = scan;
+$("#scan").onclick = () => view === "disk" ? openDir(here ? here.path : "") : scan();
 
 $("#pick").onclick = () => {
   for (const r of rows) if (r.kind === "idle" && r.level === "safe") chosen.add(r.path);
@@ -441,6 +639,7 @@ $("#pick").onclick = () => {
 };
 
 $("#trash").onclick = async () => {
+  if (view === "disk") return trashFiles();
   const items = picked(["app", "idle"]);
   const names = items.map(r => r.name).join("\n");
   const apps = items.some(r => r.kind === "app");
@@ -459,6 +658,24 @@ $("#trash").onclick = async () => {
     note("Nothing moved. Check the Terminal window.");
   }
 };
+
+async function trashFiles() {
+  const items = dirRows.filter(i => dpick.has(i.path));
+  const names = items.map(i => `${i.name}  (${size(i.mb)})`).join("\n");
+  const where = WIN ? "Recycle Bin" : "Trash";
+  if (!confirm(`Move these to the ${where}?\n\n${names}\n\nYou can put them back until you empty it.`)) return;
+  busy(true, `Moving to the ${where}.`, "Moving");
+  try {
+    const res = await (await fetch("/api/trash",
+      { method: "POST", body: JSON.stringify(items.map(i => ({ ...i, kind: "file" }))) })).json();
+    dpick.clear();
+    const d = await (await fetch("/api/explore?path=" + encodeURIComponent(here.path))).json();
+    await finish(); busy(false);
+    drawDisk(d);
+    report(res, `Moved to the ${where}:`);
+    loadBin();
+  } catch (e) { busy(false); note("Nothing moved. Check the Terminal window."); }
+}
 
 $("#clear").onclick = async () => {
   const items = picked(["cache"]);
