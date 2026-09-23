@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "First release. Mac build now runs on Intel and Apple chips."
+  "notes": "Disk space view, faster cache clearing, and fixes for Windows."
 }
