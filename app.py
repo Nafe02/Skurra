@@ -95,6 +95,15 @@ KINDS = {
 }
 KIND_OF = {ext: kind for kind, exts in KINDS.items() for ext in exts}
 
+# Opening these makes macOS ask the user for Photos or Media permission, and
+# nothing inside them is ours to tidy: Photos and Music own their own storage.
+LIBRARY_BUNDLES = (".photoslibrary", ".photolibrary", ".aplibrary", ".migratedphotolibrary",
+                   ".musiclibrary", ".tvlibrary", ".imovielibrary", ".theater", ".fcpbundle")
+
+
+def is_library(name):
+    return str(name).lower().endswith(LIBRARY_BUNDLES)
+
 
 def kind_of(path, is_dir):
     if is_dir:
@@ -607,7 +616,8 @@ def folder_size(path, deadline=None):
     """Bytes inside a folder, and how many files. Gives up at the deadline."""
     total, count = 0, 0
     for root, dirs, files in os.walk(path, onerror=lambda e: None):
-        dirs[:] = [d for d in dirs if d.lower() not in SKIP and not is_ours(os.path.join(root, d))]
+        dirs[:] = [d for d in dirs if d.lower() not in SKIP
+                   and not is_library(d) and not is_ours(os.path.join(root, d))]
         if deadline and time.time() > deadline:
             break
         for f in files:
@@ -626,6 +636,7 @@ def explore(path):
         entries = [e for e in os.scandir(p)
                    if not e.name.startswith(".")
                    and e.name.lower() not in SKIP
+                   and not is_library(e.name)
                    and not is_ours(e.path)]
     except OSError as e:
         return {"error": str(e), "path": str(p), "items": []}
