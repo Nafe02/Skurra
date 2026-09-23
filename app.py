@@ -120,6 +120,37 @@ def is_ours(path):
 
 STUCK_FILE = DATA / "stuck.json"
 
+def still_locked(path):
+    """Is another program still holding this? Asks without deleting anything.
+
+    On Windows an exclusively locked file cannot even be opened for append,
+    which is the whole reason these turn up. If it opens, the lock is gone.
+    """
+    def one(f):
+        try:
+            with open(f, "ab"):
+                return False
+        except OSError:
+            return True
+
+    if not os.path.exists(path):
+        return False                      # gone: nothing to hide any more
+    if not os.path.isdir(path):
+        return one(path)
+
+    # A folder is still held if anything inside it is. Look at a sample,
+    # newest first, so this stays quick on a cache with thousands of files.
+    stop, seen = time.time() + 2, 0
+    for root, dirs, files in os.walk(path, onerror=lambda e: None):
+        for f in files:
+            if one(os.path.join(root, f)):
+                return True
+            seen += 1
+            if seen > 300 or time.time() > stop:
+                return False
+    return False
+
+
 def load_stuck():
     try:
         return set(json.loads(STUCK_FILE.read_text()))
@@ -178,7 +209,7 @@ progress = {"done": 0, "total": 0}
 # Only one scan at a time. A second request (another tab, a refresh) waits
 # for the running one and gets its result instead of clobbering progress.
 scan_lock = threading.Lock()
-last_scan = []
+last_scan = {"items": [], "skipped": []}
 
 previous = {}
 if HISTORY.exists():
@@ -374,6 +405,7 @@ def scan():
     now = time.time()
     ids, names = installed_apps()
     stuck_paths = load_stuck()
+    skipped = []
     stamp = datetime.datetime.now().isoformat(timespec="seconds")
     found, lines, fresh = [], [], {}
     targets = []
@@ -450,6 +482,18 @@ def scan():
     progress["done"] = 0
 
     for item, where, kind in targets:
+        if str(item) in stuck_paths:
+            if still_locked(item):
+                try:
+                    mb = round(measure(item)[0] / 1024 / 1024, 1)
+                except OSError:
+                    mb = 0
+                skipped.append({"name": item.name, "where": where, "mb": mb,
+                                "why": "another program is using it right now"})
+                continue
+            stuck_paths.discard(str(item))   # the program let go: treat it normally
+            save_stuck(stuck_paths)
+
         key = f"{where}/{item.name}"
         budget = weights[key]
         spent = [0]
@@ -490,15 +534,10 @@ def scan():
                 level, why = "less", f"app still installed, data untouched for {days} days"
             else:
                 level, why = "safe", "no installed app owns this any more"
-            if str(item) in stuck_paths:
-                level, why, protected = "important", "in use by a running program", True
         elif kind == "cache":
             keep, reason = precious_cache(item) if where == "Caches" else (False, "")
             if keep:
                 level, why, protected = "important", reason, True
-            elif str(item) in stuck_paths:
-                level, protected = "important", True
-                why = "a running program is holding this open"
             else:
                 why = "the app rebuilds this when it needs it"
 
@@ -543,7 +582,7 @@ def scan():
     progress["total"] = 0
     progress["done"] = 0
     found.sort(key=lambda r: r["mb"], reverse=True)
-    return found
+    return {"items": found, "skipped": skipped}
 
 
 def scan_once():

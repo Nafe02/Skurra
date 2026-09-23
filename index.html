@@ -165,6 +165,8 @@ h3.important { color: #b5643d; }
 .keys div { display: flex; align-items: center; gap: 7px; padding: 3px 0; color: var(--dim); }
 .keys b { margin-left: auto; color: var(--ink); font-weight: 500; }
 .empty2 { color: var(--dim); font-size: 13px; padding: 20px 4px; text-align: center; }
+.skip { color: var(--dim); font-size: 13px; margin: 14px 0 0; }
+.skip b { color: var(--ink); font-weight: 500; }
 .foot { margin-top: var(--step); padding-top: var(--step);
         border-top: 1px solid var(--rule); color: var(--dim); font-size: 13px; }
 .bin {
@@ -266,13 +268,14 @@ h3.important { color: #b5643d; }
     <div class="inner" id="logrows"></div>
   </details>
 
+  <p class="skip" id="skip"></p>
   <p class="foot" id="foot"></p>
   <p class="ver" id="ver"></p>
 </main>
 
 <script>
 const $ = s => document.querySelector(s);
-let rows = [];
+let rows = [], skipped = [];
 const chosen = new Set();
 let WIN = false;                                   // set from /api/update
 const T = () => WIN ? "Recycle Bin" : "Trash";
@@ -347,7 +350,9 @@ async function scan() {
   busy(true, "Scanning your disk. This takes a minute.", "Scanning");
   $("#out").hidden = true;
   try {
-    rows = await (await fetch("/api/scan")).json();
+    const got = await (await fetch("/api/scan")).json();
+    rows = got.items || [];
+    skipped = got.skipped || [];
     chosen.clear();
     await finish();
     busy(false);
@@ -453,6 +458,10 @@ function draw() {
   $("#list-app").innerHTML = rowsFor("app", apps, biggest);
   $("#out").hidden = false;
 
+  $("#skip").innerHTML = skipped.length
+    ? `Left alone: ${skipped.map(s => `<b>${s.name}</b> (${size(s.mb)}, ${s.why})`).join(", ")}. `
+      + `Quit that program and scan again if you want ${skipped.length === 1 ? "it" : "them"} gone.`
+    : "";
   $("#foot").textContent = rows.length
     ? (WIN ? "Programs are removed by their own uninstaller. App data goes to the Recycle Bin first, so you can change your mind. Caches are cleared on the spot."
            : "Apps and app data go to the Trash first, so you can change your mind. Caches are cleared on the spot.")
