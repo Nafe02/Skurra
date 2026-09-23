@@ -31,7 +31,9 @@ body {
   font: 400 15px/1.5 -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums;
 }
-main { max-width: 700px; margin: 0 auto; }
+main { max-width: 700px; margin: 0 auto; transition: max-width .25s ease; }
+body.wide main { max-width: 1120px; }
+@media (max-width: 1180px) { body.wide main { max-width: 100%; } }
 h1 { margin: 0; font-size: 29px; font-weight: 600; letter-spacing: -0.02em; }
 .note { margin: 6px 0 var(--step); color: var(--dim); font-size: 14px; }
 h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
@@ -129,8 +131,9 @@ h3.important { color: #b5643d; }
         border-radius: 99px; border: 1px solid var(--rule); background: var(--card); color: var(--dim); }
 .view.on { background: var(--patina); border-color: var(--patina); color: var(--paper); }
 .view:hover:not(.on) { color: var(--ink); }
-.disk { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
-@media (max-width: 820px) { .disk { grid-template-columns: 1fr; } }
+.disk { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.disk[hidden] { display: none; }
+@media (max-width: 820px) { .disk { grid-template-columns: minmax(0, 1fr); } }
 .roots { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .root { font: inherit; font-size: 13px; cursor: pointer; padding: 6px 12px; border-radius: 8px;
         border: 1px solid var(--rule); background: var(--card); color: var(--dim); }
@@ -153,9 +156,10 @@ h3.important { color: #b5643d; }
 .frow .ag { color: var(--dim); font-size: 12px; width: 78px; text-align: right; white-space: nowrap; }
 .dot2 { width: 9px; height: 9px; border-radius: 3px; flex: none; }
 .panel { background: var(--card); border: 1px solid var(--rule); border-radius: var(--round);
-         padding: 16px; position: sticky; top: 12px; }
+         padding: 16px; position: sticky; top: 16px; max-height: calc(100vh - 32px);
+         overflow-y: auto; }
 .panel h4 { margin: 0 0 12px; font-size: 14px; }
-.sun { width: 100%; aspect-ratio: 1; display: block; }
+.sun { width: 100%; max-width: 240px; aspect-ratio: 1; display: block; margin: 0 auto; }
 .sun path { cursor: pointer; transition: opacity .15s; }
 .sun path:hover { opacity: .75; }
 .sunmid { text-anchor: middle; }
@@ -629,6 +633,7 @@ for (const b of document.querySelectorAll(".view")) {
     for (const o of document.querySelectorAll(".view")) o.classList.toggle("on", o === b);
     $("#out").hidden = view !== "clean";
     $("#diskview").hidden = view !== "disk";
+    document.body.classList.toggle("wide", view === "disk");
     $("#pick").hidden = view === "disk";
     $("#clear").hidden = view === "disk";
     $("#scan").textContent = view === "disk" ? "Refresh" : "Scan";
