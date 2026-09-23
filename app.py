@@ -88,6 +88,22 @@ def is_ours(path):
     return Path(path).name.lower().startswith("_mei")
 
 
+STUCK_FILE = DATA / "stuck.json"
+
+def load_stuck():
+    try:
+        return set(json.loads(STUCK_FILE.read_text()))
+    except Exception:
+        return set()
+
+
+def save_stuck(paths):
+    try:
+        STUCK_FILE.write_text(json.dumps(sorted(paths)))
+    except OSError:
+        pass
+
+
 HISTORY = DATA / "history.csv"
 MOVED_LOG = DATA / "moved.log"
 
@@ -327,6 +343,7 @@ def measure(path, tick=None, deadline=None):
 def scan():
     now = time.time()
     ids, names = installed_apps()
+    stuck_paths = load_stuck()
     stamp = datetime.datetime.now().isoformat(timespec="seconds")
     found, lines, fresh = [], [], {}
     targets = []
@@ -443,10 +460,15 @@ def scan():
                 level, why = "less", f"app still installed, data untouched for {days} days"
             else:
                 level, why = "safe", "no installed app owns this any more"
+            if str(item) in stuck_paths:
+                level, why, protected = "important", "in use by a running program", True
         elif kind == "cache":
             keep, reason = precious_cache(item) if where == "Caches" else (False, "")
             if keep:
                 level, why, protected = "important", reason, True
+            elif str(item) in stuck_paths:
+                level, protected = "important", True
+                why = "a running program is holding this open"
             else:
                 why = "the app rebuilds this when it needs it"
 
@@ -610,6 +632,18 @@ def clear(path):
                 except OSError:
                     pass
         return total
+
+    if is_ours(path):
+        return 0, -1
+
+    # A cache can be a single file, not just a folder. Delete it on its own.
+    if os.path.isfile(path):
+        before = size_of(path)
+        try:
+            os.unlink(path)
+        except OSError:
+            return 0, 1                   # Windows holds it open
+        return before, 0
 
     try:
         entries = list(os.scandir(path))
@@ -808,11 +842,21 @@ class Handler(SimpleHTTPRequestHandler):
                         days=it.get("days"), kind=it.get("kind"), change=it.get("change"))
             if wipe:
                 freed, stuck = clear(path)
+                known = load_stuck()
+                if stuck:
+                    known.add(path)
+                else:
+                    known.discard(path)
+                save_stuck(known)
                 note["mb"] = round(freed / 1024 / 1024, 1)
-                if stuck == -1 or (freed == 0 and stuck):
+                if stuck == -1:
                     failed.append(name)
                     note["did"] = "failed"
-                    note["why"] = "in use by a running program"
+                    note["why"] = "Skurra could not open this"
+                elif freed == 0 and stuck:
+                    failed.append(name)
+                    note["did"] = "failed"
+                    note["why"] = "a running program is holding it open"
                 elif stuck:
                     done += 1
                     partly.append(name)
