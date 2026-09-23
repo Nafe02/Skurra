@@ -135,6 +135,44 @@ def is_ours(path):
     return Path(path).name.lower().startswith("_mei")
 
 
+GUARDED_FILE = DATA / "guarded.json"
+
+def load_guarded():
+    try:
+        return set(json.loads(GUARDED_FILE.read_text()))
+    except Exception:
+        return set()
+
+
+def save_guarded(paths):
+    try:
+        GUARDED_FILE.write_text(json.dumps(sorted(paths)))
+    except OSError:
+        pass
+
+
+def without_hanging(fn, seconds):
+    """Run fn in its own thread and walk away if it does not come back.
+
+    macOS guards some folders. Reading one puts a permission dialog on the
+    screen and the reading thread stops dead until somebody answers it, which
+    used to freeze the whole app. We cannot unblock that thread, but we can
+    stop waiting for it and carry on.
+    """
+    box = {}
+
+    def run():
+        try:
+            box["value"] = fn()
+        except Exception:
+            box["value"] = None
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    t.join(seconds)
+    return box.get("value") if "value" in box else None
+
+
 STUCK_FILE = DATA / "stuck.json"
 
 def still_locked(path):
@@ -422,6 +460,7 @@ def scan():
     now = time.time()
     ids, names = installed_apps()
     stuck_paths = load_stuck()
+    guarded = load_guarded()
     skipped = []
     stamp = datetime.datetime.now().isoformat(timespec="seconds")
     found, lines, fresh = [], [], {}
@@ -499,6 +538,10 @@ def scan():
     progress["done"] = 0
 
     for item, where, kind in targets:
+        if str(item) in guarded:
+            skipped.append({"name": item.name, "where": where, "mb": 0,
+                            "why": "macOS wants permission for this one"})
+            continue
         if str(item) in stuck_paths:
             if still_locked(item):
                 try:
@@ -524,8 +567,17 @@ def scan():
             size, touched = uninstallers[str(item)][2] * 1024, 0
             tick(budget)
         else:
-            size, touched = measure(item, tick, deadline=time.time() + ITEM_LIMIT)
+            got = without_hanging(
+            lambda: measure(item, tick, deadline=time.time() + ITEM_LIMIT),
+            ITEM_LIMIT + 5)
         progress["done"] += max(0, budget - spent[0])
+        if got is None:                      # macOS is holding this one
+            guarded.add(str(item))
+            save_guarded(guarded)
+            skipped.append({"name": item.name, "where": where, "mb": 0,
+                            "why": "macOS wants permission for this one"})
+            continue
+        size, touched = got
 
         if size == 0:
             continue
@@ -663,7 +715,11 @@ def explore(path):
         try:
             if is_dir:
                 left = max(0.5, min(DISK_ITEM, ends - time.time()))
-                size, files, whole = folder_size(e.path, deadline=time.time() + left)
+                got = without_hanging(
+                    lambda: folder_size(e.path, deadline=time.time() + left), left + 3)
+                if got is None:
+                    continue                 # guarded by macOS: leave it out
+                size, files, whole = got
             else:
                 size, files, whole = e.stat(follow_symlinks=False).st_size, 1, True
             touched = e.stat(follow_symlinks=False).st_mtime

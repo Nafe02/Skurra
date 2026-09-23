@@ -24,7 +24,14 @@ DEST="/Applications"
 
 if [ -d "$DEST/Skurra.app" ]; then
   echo "Replacing the Skurra already in $DEST..."
+  # Stop the running copy and wait for it to actually let go. A Skurra stuck
+  # behind a macOS permission dialog ignores a polite ask, so insist after 5s.
   pkill -f "Skurra.app/Contents/MacOS/Skurra" 2>/dev/null || true
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -f "Skurra.app/Contents/MacOS/Skurra" >/dev/null 2>&1 || break
+    [ "$i" = 5 ] && pkill -9 -f "Skurra.app/Contents/MacOS/Skurra" 2>/dev/null || true
+    sleep 0.5
+  done
   rm -rf "$DEST/Skurra.app"
 fi
 echo "Copying Skurra into $DEST..."
