@@ -597,11 +597,19 @@ function drawDisk(data) {
 
 async function openDir(path) {
   busy(true, "Measuring this folder. Big ones take a moment.", "Measuring");
-  try {
-    const d = await (await fetch("/api/explore?path=" + encodeURIComponent(path))).json();
-    await finish(); busy(false);
-    drawDisk(d);
-  } catch (e) { busy(false); note("Could not read that folder."); }
+  // One retry: a Skurra that was just replaced can miss the first request.
+  for (const attempt of [1, 2]) {
+    try {
+      const d = await (await fetch("/api/explore?path=" + encodeURIComponent(path))).json();
+      await finish(); busy(false);
+      drawDisk(d);
+      return;
+    } catch (e) {
+      if (attempt === 1) { await new Promise(r => setTimeout(r, 1200)); continue; }
+      busy(false);
+      note("Could not read that folder. If Skurra was just updated, close this window and open it again.");
+    }
+  }
 }
 
 function refreshDisk() {
