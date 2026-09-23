@@ -153,6 +153,7 @@ h3.important { color: #b5643d; }
 .frow.isdir .nm { cursor: pointer; }
 .frow.isdir .nm:hover b { color: var(--patina); }
 .frow .sz { font-weight: 500; font-size: 14px; }
+.frow .sz i { font-style: normal; color: var(--dim); font-size: 12px; margin-right: 2px; }
 .frow .ag { color: var(--dim); font-size: 12px; width: 78px; text-align: right; white-space: nowrap; }
 .dot2 { width: 9px; height: 9px; border-radius: 3px; flex: none; }
 .panel { background: var(--card); border: 1px solid var(--rule); border-radius: var(--round);
@@ -318,7 +319,7 @@ function watch(on) {
     if (!frame) paint();
     poller = setInterval(async () => {
       try {
-        const p = await (await fetch("/api/progress")).json();
+        const p = await (await fetch(view === "disk" ? "/api/exploring" : "/api/progress")).json();
         if (p.total) target = Math.min(99, p.done / p.total * 100);
       } catch (e) {}
     }, 150);
@@ -579,7 +580,7 @@ function drawDisk(data) {
       <input type="checkbox" data-path="${i.path}" ${dpick.has(i.path) ? "checked" : ""}>
       <span class="nm" data-go="${i.dir ? i.path : ""}"><i class="dot2" style="background:${c}"></i>
         <b>${i.name}</b>${i.dir ? `<em style="font-style:normal;color:var(--dim);font-size:12px">${i.files} files</em>` : ""}</span>
-      <span class="sz">${size(i.mb)}</span>
+      <span class="sz">${i.approx ? "<i>over</i> " : ""}${size(i.mb)}</span>
       <span class="ag">${age}</span>
     </div>`;
   }).join("") : `<div class="empty2">${data.error ? "Could not read this folder: " + data.error : "Nothing in here."}</div>`;

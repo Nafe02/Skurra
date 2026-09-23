@@ -105,6 +105,14 @@ def is_library(name):
     return str(name).lower().endswith(LIBRARY_BUNDLES)
 
 
+# Your own folders only. ~/Library (or AppData) holds app territory: it is huge,
+# parts of it are guarded by macOS, and the Clean up tab already covers it.
+NOT_YOURS = {"library", "appdata", "applications", "public"}
+
+DISK_BUDGET = 30        # seconds for one folder, all of it
+DISK_ITEM = 6           # seconds any single item inside may take
+
+
 def kind_of(path, is_dir):
     if is_dir:
         return "folder"
@@ -613,12 +621,13 @@ explore_lock = threading.Lock()
 
 
 def folder_size(path, deadline=None):
-    """Bytes inside a folder, and how many files. Gives up at the deadline."""
-    total, count = 0, 0
+    """Bytes inside a folder, how many files, and whether it got to the end."""
+    total, count, whole = 0, 0, True
     for root, dirs, files in os.walk(path, onerror=lambda e: None):
         dirs[:] = [d for d in dirs if d.lower() not in SKIP
                    and not is_library(d) and not is_ours(os.path.join(root, d))]
         if deadline and time.time() > deadline:
+            whole = False
             break
         for f in files:
             try:
@@ -626,7 +635,7 @@ def folder_size(path, deadline=None):
                 count += 1
             except OSError:
                 pass
-    return total, count
+    return total, count, whole
 
 
 def explore(path):
@@ -637,12 +646,14 @@ def explore(path):
                    if not e.name.startswith(".")
                    and e.name.lower() not in SKIP
                    and not is_library(e.name)
+                   and not (p == HOME and e.name.lower() in NOT_YOURS)
                    and not is_ours(e.path)]
     except OSError as e:
         return {"error": str(e), "path": str(p), "items": []}
 
     explore_progress.update(done=0, total=max(1, len(entries)), where=p.name or str(p))
     items = []
+    ends = time.time() + DISK_BUDGET
     for n, e in enumerate(entries):
         explore_progress["done"] = n
         try:
@@ -651,9 +662,10 @@ def explore(path):
             continue
         try:
             if is_dir:
-                size, files = folder_size(e.path, deadline=time.time() + ITEM_LIMIT)
+                left = max(0.5, min(DISK_ITEM, ends - time.time()))
+                size, files, whole = folder_size(e.path, deadline=time.time() + left)
             else:
-                size, files = e.stat(follow_symlinks=False).st_size, 1
+                size, files, whole = e.stat(follow_symlinks=False).st_size, 1, True
             touched = e.stat(follow_symlinks=False).st_mtime
         except OSError:
             continue
@@ -665,6 +677,7 @@ def explore(path):
             "mb": round(size / 1024 / 1024, 1),
             "files": files,
             "days": int((time.time() - touched) / 86400) if touched else 0,
+            "approx": not whole,
         })
     explore_progress["done"] = explore_progress["total"]
 
