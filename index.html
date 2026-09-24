@@ -506,9 +506,17 @@ function report(res, verb) {
 
 // ---------------------------------------------------------------- disk space
 
+// One clearly different colour per kind. Folders are the deep green the eye
+// reads as "container"; everything else sits well away from it on the wheel.
 const KIND_COLOUR = {
-  folder: "#6bbfa8", video: "#d98a9e", image: "#e0b35a", audio: "#8fa8d8",
-  document: "#7fc4b0", archive: "#c98f6b", code: "#9d8fd8", other: "#7c8b88",
+  folder:   "#2f8f76",   // deep green
+  document: "#5b9bd5",   // blue
+  image:    "#e0b35a",   // amber
+  video:    "#d9718a",   // pink
+  audio:    "#9b7fd4",   // purple
+  archive:  "#c97f4e",   // brown
+  code:     "#57c6c6",   // cyan
+  other:    "#8a9794",   // grey
 };
 let here = null, dirRows = [];
 const dpick = new Set();

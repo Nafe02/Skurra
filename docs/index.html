@@ -138,6 +138,46 @@ kbd { font: inherit; font-size: 14px; background: var(--paper); border: 1px soli
 footer { padding: 28px; border-top: 1px solid var(--rule); color: var(--dim); font-size: 13px; text-align: center; }
 footer a { color: var(--dim); }
 
+/* ---- disk space section ---- */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 44px; align-items: center; }
+@media (max-width: 880px) { .split { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
+.ticks { list-style: none; margin: 0; padding: 0; color: var(--dim); font-size: 15px; }
+.ticks li { position: relative; padding: 0 0 10px 26px; }
+.ticks li::before {
+  content: ""; position: absolute; left: 2px; top: 6px; width: 11px; height: 6px;
+  border-left: 2px solid var(--patina); border-bottom: 2px solid var(--patina);
+  transform: rotate(-45deg);
+}
+.shot { margin: 0; }
+.shot-win { border-radius: 12px; overflow: hidden; background: var(--card);
+            border: 1px solid var(--rule); box-shadow: 0 20px 44px rgba(0,0,0,.28); }
+.shot-bar { display: flex; align-items: center; gap: 6px; padding: 9px 12px;
+            background: var(--paper2); border-bottom: 1px solid var(--rule); }
+.shot-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--rule); }
+.shot-bar b { margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--dim); }
+.shot-body { display: grid; grid-template-columns: minmax(0, 1fr) 136px; gap: 12px; padding: 14px; }
+@media (max-width: 460px) { .shot-body { grid-template-columns: minmax(0, 1fr); } }
+.shot-crumbs { font-size: 11px; color: var(--patina); margin-bottom: 9px; }
+.shot-crumbs span { color: var(--dim); }
+.shot-row { position: relative; display: flex; align-items: center; gap: 8px;
+            padding: 7px 9px; border-radius: 7px; background: var(--paper2);
+            margin-bottom: 4px; font-size: 11px; overflow: hidden; }
+.shot-row > * { position: relative; }
+.shot-row u { position: absolute; left: 0; top: 0; bottom: 0; opacity: .14; }
+.shot-row i { width: 7px; height: 7px; border-radius: 2px; flex: none; }
+.shot-row b { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shot-row span { color: var(--dim); }
+.shot-panel { background: var(--paper2); border: 1px solid var(--rule); border-radius: 9px; padding: 10px; }
+.shot-panel p { margin: 0 0 6px; font-size: 11px; font-weight: 600; }
+.shot-panel svg { width: 100%; display: block; }
+.shot-mid { text-anchor: middle; font-size: 11px; font-weight: 600; fill: var(--ink); }
+.shot-sub { text-anchor: middle; font-size: 6px; fill: var(--dim); }
+.shot-keys { margin-top: 8px; font-size: 10px; }
+.shot-keys div { display: flex; align-items: center; gap: 6px; padding: 2px 0; color: var(--dim); }
+.shot-keys i { width: 7px; height: 7px; border-radius: 2px; }
+.shot-keys b { margin-left: auto; color: var(--ink); font-weight: 500; }
+.shot figcaption { margin-top: 12px; text-align: center; color: var(--dim); font-size: 13px; }
+
 /* ---- laptop walkthrough ---- */
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 26px; }
 .tab { font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; padding: 9px 16px;
@@ -273,6 +313,7 @@ footer a { color: var(--dim); }
   </a>
   <div class="links">
     <a href="#how">How it works</a>
+    <a href="#disk">Disk space</a>
     <a href="#watch">Installing</a>
     <a href="https://github.com/nafe02/Skurra">GitHub</a>
     <a class="pill" href="#download"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>Download</a>
@@ -377,6 +418,62 @@ footer a { color: var(--dim); }
   </div>
 </section>
 
+
+<section id="disk">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2 class="reveal">See where it all went</h2>
+        <p class="sub reveal d1">The Disk space view walks your own folders and measures them properly, so the thing quietly eating 30 GB has nowhere to hide.</p>
+        <ul class="ticks reveal d1">
+          <li>Every folder measured for real, biggest first</li>
+          <li>A colour per kind: folders, documents, images, video, audio, archives, code</li>
+          <li>Click any folder, or any slice of the ring, to go deeper</li>
+          <li>Tick what you do not need and it goes to the Trash, never straight to deletion</li>
+        </ul>
+      </div>
+
+      <figure class="shot reveal d2">
+        <div class="shot-win">
+          <div class="shot-bar"><i></i><i></i><i></i><b>Skurra</b></div>
+          <div class="shot-body">
+            <div class="shot-list">
+              <div class="shot-crumbs">Home <span>&#8250;</span> Downloads</div>
+              <div class="shot-row"><i style="background:#2f8f76"></i><b>Portfolio-Site</b><span>1.57 GB</span><u style="width:100%;background:#2f8f76"></u></div>
+              <div class="shot-row"><i style="background:#2f8f76"></i><b>The Wire Season 2</b><span>1.54 GB</span><u style="width:98%;background:#2f8f76"></u></div>
+              <div class="shot-row"><i style="background:#c97f4e"></i><b>GitHubDesktop.zip</b><span>314 MB</span><u style="width:20%;background:#c97f4e"></u></div>
+              <div class="shot-row"><i style="background:#e0b35a"></i><b>Desktop Wallpapers</b><span>38.9 MB</span><u style="width:8%;background:#e0b35a"></u></div>
+              <div class="shot-row"><i style="background:#5b9bd5"></i><b>Invoice 2026.pdf</b><span>819 KB</span><u style="width:4%;background:#5b9bd5"></u></div>
+            </div>
+            <div class="shot-panel">
+              <p>What is in here</p>
+              <svg viewBox="0 0 120 120" aria-hidden="true">
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#2f8f76" stroke-width="20"
+                        stroke-dasharray="214 62" transform="rotate(-90 60 60)"/>
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#c97f4e" stroke-width="20"
+                        stroke-dasharray="34 242" transform="rotate(200 60 60)"/>
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#e0b35a" stroke-width="20"
+                        stroke-dasharray="14 262" transform="rotate(246 60 60)"/>
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#5b9bd5" stroke-width="20"
+                        stroke-dasharray="8 268" transform="rotate(266 60 60)"/>
+                <circle cx="60" cy="60" r="30" fill="var(--card)"/>
+                <text x="60" y="58" class="shot-mid">4.9 GB</text>
+                <text x="60" y="70" class="shot-sub">33 items</text>
+              </svg>
+              <div class="shot-keys">
+                <div><i style="background:#2f8f76"></i>folder<b>4.5 GB</b></div>
+                <div><i style="background:#c97f4e"></i>archive<b>352 MB</b></div>
+                <div><i style="background:#e0b35a"></i>image<b>7 MB</b></div>
+                <div><i style="background:#5b9bd5"></i>document<b>819 KB</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption>The Disk space view, measuring a Downloads folder.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
 
 <section id="watch">
   <div class="wrap">
