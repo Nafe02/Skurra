@@ -655,6 +655,7 @@ def scan():
 
 
 def scan_once():
+    """Same idea for the cleaning scan: a stuck one must not block the rest."""
     global last_scan
     if scan_lock.acquire(blocking=False):
         try:
@@ -662,8 +663,12 @@ def scan_once():
             return last_scan
         finally:
             scan_lock.release()
-    with scan_lock:
+    if not scan_lock.acquire(timeout=90):
+        return last_scan                     # whatever we last managed to read
+    try:
         return last_scan
+    finally:
+        scan_lock.release()
 
 
 # ---------------------------------------------------------------- disk walk
@@ -690,18 +695,27 @@ def folder_size(path, deadline=None):
     return total, count, whole
 
 
+def list_folder(p):
+    return [e for e in os.scandir(p)
+            if not e.name.startswith(".")
+            and e.name.lower() not in SKIP
+            and not is_library(e.name)
+            and not (p == HOME and e.name.lower() in NOT_YOURS)
+            and not is_ours(e.path)]
+
+
 def explore(path):
     """Everything one level inside a folder, each with its true size."""
     p = Path(path)
-    try:
-        entries = [e for e in os.scandir(p)
-                   if not e.name.startswith(".")
-                   and e.name.lower() not in SKIP
-                   and not is_library(e.name)
-                   and not (p == HOME and e.name.lower() in NOT_YOURS)
-                   and not is_ours(e.path)]
-    except OSError as e:
-        return {"error": str(e), "path": str(p), "items": []}
+    # Even listing a folder can stop dead behind a macOS permission dialog,
+    # so this gets the same deadline as measuring does.
+    entries = without_hanging(lambda: list_folder(p), 8)
+    if entries is None:
+        guarded = load_guarded()
+        guarded.add(str(p))
+        save_guarded(guarded)
+        return {"error": "macOS wants permission for this folder", "path": str(p),
+                "parent": str(p.parent), "crumbs": [], "items": [], "totals": {}, "mb": 0}
 
     explore_progress.update(done=0, total=max(1, len(entries)), where=p.name or str(p))
     items = []
@@ -759,13 +773,14 @@ def explore(path):
 
 
 def explore_once(path):
-    if explore_lock.acquire(blocking=False):
-        try:
-            return explore(path)
-        finally:
-            explore_lock.release()
-    with explore_lock:
+    """One walk at a time, but never queue forever behind a stuck one."""
+    if not explore_lock.acquire(timeout=45):
+        return {"error": "Skurra is still measuring another folder", "path": str(path),
+                "parent": "", "crumbs": [], "items": [], "totals": {}, "mb": 0}
+    try:
         return explore(path)
+    finally:
+        explore_lock.release()
 
 
 def inside_home(path):
