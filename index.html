@@ -571,6 +571,17 @@ function drawDisk(data) {
   for (const b of $("#crumbs").querySelectorAll("button")) b.onclick = () => openDir(b.dataset.p);
 
   const biggest = data.items.length ? Math.max(...data.items.map(i => i.mb)) : 1;
+  if (data.error) {
+    $("#flist").innerHTML = `<div class="empty2">${data.error}.<br>
+      To let Skurra look in here: <b>System Settings \u2192 Privacy &amp; Security \u2192 Files and Folders</b>,
+      turn Skurra on, then press Refresh.</div>`;
+    $("#sun").innerHTML = "";
+    $("#keys").innerHTML = "";
+    note("Skurra was not allowed to read that folder.");
+    $("#foot").textContent = "";
+    refreshDisk();
+    return;
+  }
   $("#flist").innerHTML = data.items.length ? data.items.map(i => {
     const c = KIND_COLOUR[i.dir ? "folder" : i.kind];
     const w = Math.max(2, Math.round(i.mb / biggest * 100));
