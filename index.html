@@ -165,11 +165,26 @@ h3.important { color: #b5643d; }
 .sun path:hover { opacity: .75; }
 .sunmid { text-anchor: middle; }
 .sunmid .big { font-size: 22px; font-weight: 600; fill: var(--ink); }
-.sunmid .sm { font-size: 10px; fill: var(--dim); }
+.sunmid .sm { font-size: 10px; fill: var(--ink); opacity: .72; }
+.sunmid .after { font-size: 10px; fill: var(--patina); font-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  .sunmid .big, .sunmid .sm { fill: #fff; }
+}
+.sun path.off { opacity: .16 !important; filter: none !important; }
 .keys { margin-top: 12px; font-size: 12px; }
 .keys div { display: flex; align-items: center; gap: 7px; padding: 3px 0; color: var(--dim); }
 .keys b { margin-left: auto; color: var(--ink); font-weight: 500; }
 .empty2 { color: var(--dim); font-size: 13px; padding: 20px 4px; text-align: center; }
+.peek { font: inherit; font-size: 13px; cursor: pointer; border: none; background: none;
+        color: var(--dim); padding: 0 2px; width: 18px; flex: none; line-height: 1; }
+.peek:hover { color: var(--patina); }
+.peek span { display: inline-block; transition: transform .15s; }
+.peek.open span { transform: rotate(90deg); }
+.inside { margin: -2px 0 6px 40px; padding: 8px 12px; border-left: 2px solid var(--rule);
+          font-size: 12px; color: var(--dim); }
+.inside div { display: flex; gap: 10px; padding: 3px 0; }
+.inside div b { flex: 1; font-weight: 400; color: var(--ink);
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .skip { color: var(--dim); font-size: 13px; margin: 14px 0 0; }
 .skip b { color: var(--ink); font-weight: 500; }
 .foot { margin-top: var(--step); padding-top: var(--step);
@@ -233,6 +248,22 @@ h3.important { color: #b5643d; }
       <div class="inner">
         <p class="sub">Apps rebuild these on their own. Clear them in place, they never need the Trash.</p>
         <div id="list-cache"></div>
+      </div>
+    </details>
+
+    <details class="box" id="box-log">
+      <summary>Application logs <span class="meta" id="meta-log2"></span></summary>
+      <div class="inner">
+        <p class="sub">Notes apps write while they run and never read again. Cleared in place.</p>
+        <div id="list-log"></div>
+      </div>
+    </details>
+
+    <details class="box" id="box-installer">
+      <summary>Installation files <span class="meta" id="meta-installer"></span></summary>
+      <div class="inner">
+        <p class="sub">Installers sitting in Downloads after the app they carried is already installed.</p>
+        <div id="list-installer"></div>
       </div>
     </details>
 
@@ -411,10 +442,12 @@ function rowsFor(kind, list, biggest, limit) {
     const age = r.days >= 9999 ? "never opened"
               : r.days === 0 ? "used today"
               : r.days === 1 ? "1 day ago" : r.days + " days ago";
-    const tag = kind === "app" ? "app" : kind === "cache" ? "cache" : "app data";
+    const tag = kind === "app" ? "app" : kind === "cache" ? "cache"
+              : kind === "log" ? "log" : kind === "installer" ? "installer" : "app data";
     out += `
       <div class="row ${state} ${kind} ${r.level}">
         <span class="fill" style="width:${w}%"></span>
+        <button class="peek" type="button" data-peek="${r.path}" title="See what is inside"><span>\u203a</span></button>
         <input type="checkbox" data-path="${r.path}" ${r.protected ? "disabled" : ""} ${chosen.has(r.path) ? "checked" : ""}>
         <span class="who"><b>${r.name}<span class="tag">${tag}</span></b><em>${r.where}${r.why ? " · " + r.why : ""}</em></span>
         <span class="num">${size(r.mb)}</span>
@@ -437,6 +470,8 @@ function draw() {
   const apps = rows.filter(r => r.kind === "app");
   const data = rows.filter(r => r.kind === "idle");
   const cache = rows.filter(r => r.kind === "cache");
+  const logs = rows.filter(r => r.kind === "log");
+  const installers = rows.filter(r => r.kind === "installer");
   const biggest = rows.length ? Math.max(...rows.map(r => r.mb)) : 1;
   const safe = data.filter(r => r.level === "safe");
   const less = data.filter(r => r.level === "less");
@@ -452,7 +487,11 @@ function draw() {
     : "nothing found";
   $("#meta-app").textContent = meta(apps);
 
+  $("#meta-log2").textContent = meta(logs);
+  $("#meta-installer").textContent = meta(installers);
   $("#list-cache").innerHTML = rowsFor("cache", cache, biggest, moreCaches ? 0 : TOP);
+  $("#list-log").innerHTML = rowsFor("log", logs, biggest);
+  $("#list-installer").innerHTML = rowsFor("installer", installers, biggest);
   const more = $("#more-cache");
   if (more) more.onclick = () => { moreCaches = !moreCaches; draw(); };
   $("#list-data").innerHTML = data.length
@@ -478,13 +517,34 @@ function draw() {
       refresh();
     };
   }
+  for (const b of document.querySelectorAll(".peek")) {
+    b.onclick = async () => {
+      const row = b.closest(".row");
+      const open = row.nextElementSibling && row.nextElementSibling.classList.contains("inside");
+      if (open) { row.nextElementSibling.remove(); b.classList.remove("open"); return; }
+      b.classList.add("open");
+      const box = document.createElement("div");
+      box.className = "inside";
+      box.textContent = "Looking inside\u2026";
+      row.after(box);
+      try {
+        const d = await (await fetch("/api/explore?path=" + encodeURIComponent(b.dataset.peek))).json();
+        const list = (d.items || []).slice(0, 8);
+        box.innerHTML = d.error ? d.error
+          : list.length ? list.map(i =>
+              `<div><b>${i.name}</b><span>${size(i.mb)}</span></div>`).join("")
+              + ((d.items.length > 8) ? `<div><b>and ${d.items.length - 8} more</b></div>` : "")
+          : "Nothing in here.";
+      } catch (e) { box.textContent = "Could not look inside this one."; }
+    };
+  }
   $("#pick").disabled = !safe.length;
   refresh();
 }
 
 function refresh() {
-  const t = picked(["app", "idle"]).length;
-  const c = picked(["cache"]).length;
+  const t = picked(["app", "idle", "installer"]).length;
+  const c = picked(["cache", "log"]).length;
   $("#trash").disabled = !t;
   $("#clear").disabled = !c;
   const hasApp = picked(["app"]).length > 0;
@@ -556,14 +616,16 @@ function drawSun(data) {
       const shade = 1 - (n % 4) * 0.13;
       out += `<path d="${arc(100, 100, 64, 92, b, b + sp)}" fill="${KIND_COLOUR[kind]}"
         style="filter:brightness(${shade})" stroke="var(--card)" stroke-width=".6"
-        data-go="${i.dir ? i.path : ""}"><title>${i.name} · ${size(i.mb)}</title></path>`;
+        data-go="${i.dir ? i.path : ""}" data-item="${i.path}"><title>${i.name} · ${size(i.mb)}</title></path>`;
       b += sp;
     });
     a += span;
   }
-  out += `<text class="sunmid big" x="100" y="98">${size(total)}</text>`;
-  out += `<text class="sunmid sm" x="100" y="114">${data.items.length} items</text>`;
+  out += `<text class="sunmid big" id="suntotal" x="100" y="95">${size(total)}</text>`;
+  out += `<text class="sunmid sm" id="suncount" x="100" y="108">${data.items.length} items</text>`;
+  out += `<text class="sunmid after" id="sunafter" x="100" y="121"></text>`;
   sun.innerHTML = out;
+  sunTotal = total;
   for (const path of sun.querySelectorAll("path[data-go]")) {
     if (path.dataset.go) path.onclick = () => openDir(path.dataset.go);
   }
@@ -608,7 +670,7 @@ function drawDisk(data) {
     if (nm.dataset.go) nm.onclick = () => openDir(nm.dataset.go);
   }
   for (const box of $("#flist").querySelectorAll("input")) {
-    box.onchange = () => { box.checked ? dpick.add(box.dataset.path) : dpick.delete(box.dataset.path); refreshDisk(); };
+    box.onchange = () => { box.checked ? dpick.add(box.dataset.path) : dpick.delete(box.dataset.path); refreshDisk(); updateSun(); };
   }
   drawSun(data);
   refreshDisk();
@@ -632,6 +694,7 @@ async function openDir(path) {
 }
 
 function refreshDisk() {
+  updateSun();
   const picked = dirRows.filter(i => dpick.has(i.path));
   const mb = picked.reduce((a, i) => a + i.mb, 0);
   $("#trash").disabled = !picked.length;
@@ -652,6 +715,23 @@ async function showDisk() {
   const first = $("#roots").children[Math.min(3, roots.length - 1)];
   first.classList.add("on");
   openDir(first.dataset.p);
+}
+
+let sunTotal = 0;
+
+// Keep the ring honest while you tick: dim what is selected and count down.
+function updateSun() {
+  const t = $("#suntotal");
+  if (!t || !here) return;
+  const goingMb = dirRows.filter(i => dpick.has(i.path)).reduce((a, i) => a + i.mb, 0);
+  const left = Math.max(0, sunTotal - goingMb);
+  t.textContent = size(left);
+  const staying = dirRows.filter(i => !dpick.has(i.path) && i.mb > 0).length;
+  $("#suncount").textContent = `${staying} item${staying === 1 ? "" : "s"}`;
+  $("#sunafter").textContent = goingMb ? `\u2212${size(goingMb)}` : "";
+  for (const path of $("#sun").querySelectorAll("path[data-item]")) {
+    path.classList.toggle("off", dpick.has(path.dataset.item));
+  }
 }
 
 let view = "clean";
@@ -682,7 +762,7 @@ $("#pick").onclick = () => {
 
 $("#trash").onclick = async () => {
   if (view === "disk") return trashFiles();
-  const items = picked(["app", "idle"]);
+  const items = picked(["app", "idle", "installer"]);
   const names = items.map(r => r.name).join("\n");
   const apps = items.some(r => r.kind === "app");
   const msg = WIN && apps
@@ -720,7 +800,7 @@ async function trashFiles() {
 }
 
 $("#clear").onclick = async () => {
-  const items = picked(["cache"]);
+  const items = picked(["cache", "log"]);
   const names = items.map(r => `${r.name} (${r.where})`).join("\n");
   if (!confirm(`Clear these caches now?\n\n${names}\n\nThey are deleted straight away, not moved to the Trash. Apps rebuild them as needed.`)) return;
   busy(true, "Clearing caches.", "Clearing");

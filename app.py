@@ -70,6 +70,15 @@ else:
     DATA = HOME / "Library/Application Support/Skurra"
     TRASH = HOME / ".Trash"
 
+# Logs an app wrote and never read again, and installers you already used.
+if WINDOWS:
+    LOG_DIRS = [LOCAL / "Temp", HOME / "AppData/Local/CrashDumps"]
+else:
+    LOG_DIRS = [HOME / "Library/Logs"]
+
+INSTALLER_EXT = {".dmg", ".pkg", ".msi", ".exe", ".iso"}
+INSTALLER_DAYS = 14          # old enough that you have surely installed it
+
 FOLDERS = APPDATA_DIRS + [CACHES_DIR]
 
 # ---------------------------------------------------------------- disk view
@@ -506,6 +515,31 @@ def scan():
                 continue
             targets.append((app, "Applications", "app"))
 
+    # logs apps leave behind
+    for folder in LOG_DIRS:
+        if not folder.exists():
+            continue
+        try:
+            entries = list(folder.iterdir())
+        except OSError:
+            continue
+        for item in entries:
+            low = item.name.lower()
+            if low.startswith(".") or low in SKIP or is_ours(item):
+                continue
+            targets.append((item, "Logs", "log"))
+
+    # installers sitting in Downloads long after they were used
+    downloads = HOME / "Downloads"
+    if downloads.exists():
+        try:
+            entries = list(downloads.iterdir())
+        except OSError:
+            entries = []
+        for item in entries:
+            if item.is_file() and item.suffix.lower() in INSTALLER_EXT and not is_ours(item):
+                targets.append((item, "Downloads", "installer"))
+
     # caches tucked inside each app's own data folder
     for appdata in APPDATA_DIRS:
         if not appdata.exists():
@@ -588,7 +622,11 @@ def scan():
         lines.append(f"{stamp},{key},{size},{days}")
         fresh[key] = size
 
-        if kind != "app" and size / 1024 / 1024 < MIN_MB:
+        if kind in ("idle", "cache") and size / 1024 / 1024 < MIN_MB:
+            continue
+        if kind == "log" and size / 1024 / 1024 < 1:
+            continue
+        if kind == "installer" and size / 1024 / 1024 < 5:
             continue
 
         # how safe is it to remove this?
@@ -603,6 +641,14 @@ def scan():
                 level, why = "less", f"app still installed, data untouched for {days} days"
             else:
                 level, why = "safe", "no installed app owns this any more"
+        elif kind == "log":
+            level, why = "safe", "a log an app wrote and never reads again"
+        elif kind == "installer":
+            if days < INSTALLER_DAYS:
+                level = "less"
+                why = f"downloaded {days} day{'s' if days != 1 else ''} ago, you may still need it"
+            else:
+                level, why = "safe", "an installer you already used"
         elif kind == "cache":
             keep, reason = precious_cache(item) if where == "Caches" else (False, "")
             if keep:
@@ -821,6 +867,12 @@ def allowed(path):
             return False, reason
         return True, ""
 
+    if any(p.parent == d.resolve() for d in LOG_DIRS if d.exists()):
+        return True, ""
+
+    if p.parent == (HOME / "Downloads").resolve() and p.suffix.lower() in INSTALLER_EXT:
+        return True, ""
+
     if p.parent in appdatas:
         if p.name.lower() in KEEP_APPDATA or p.name.lower() in SKIP:
             return False, "holds work that cannot be rebuilt"
@@ -860,6 +912,7 @@ def is_cache(path):
         return False
     return (p.parent == caches
             or (p.name in CACHE_INSIDE_APPS and p.parent.parent in appdatas)
+            or any(p.parent == d.resolve() for d in LOG_DIRS if d.exists())
             or any(p == b.resolve() for b in BROWSER_CACHES if b.exists()))
 
 
