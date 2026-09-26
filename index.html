@@ -163,12 +163,15 @@ h3.important { color: #b5643d; }
 .sun { width: 100%; max-width: 240px; aspect-ratio: 1; display: block; margin: 0 auto; }
 .sun path { cursor: pointer; transition: opacity .15s; }
 .sun path:hover { opacity: .75; }
-.sunmid { text-anchor: middle; }
-.sunmid .big { font-size: 22px; font-weight: 600; fill: var(--ink); }
-.sunmid .sm { font-size: 10px; fill: var(--ink); opacity: .72; }
-.sunmid .after { font-size: 10px; fill: var(--patina); font-weight: 700; }
+/* Both classes sit on the same <text>, so these must not have a space:
+   ".sunmid .big" would mean "a .big inside a .sunmid" and match nothing,
+   leaving the text at the SVG default of black. */
+.sunmid { text-anchor: middle; fill: var(--ink); }
+.sunmid.big { font-size: 22px; font-weight: 600; fill: var(--ink); }
+.sunmid.sm { font-size: 10px; fill: var(--ink); opacity: .72; }
+.sunmid.after { font-size: 10px; fill: var(--patina); font-weight: 700; }
 @media (prefers-color-scheme: dark) {
-  .sunmid .big, .sunmid .sm { fill: #fff; }
+  .sunmid, .sunmid.big, .sunmid.sm { fill: #fff; }
 }
 .sun path.off { opacity: .16 !important; filter: none !important; }
 .keys { margin-top: 12px; font-size: 12px; }
