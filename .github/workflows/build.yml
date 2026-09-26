@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install what the build needs
-        run: pip install pywebview pyinstaller send2trash
+        run: pip install pywebview pyinstaller send2trash certifi
       - name: Build Skurra.exe
         run: >
           pyinstaller --noconfirm --onefile --windowed --name Skurra
@@ -47,7 +47,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install what the build needs
-        run: pip install pywebview pyinstaller
+        run: pip install pywebview pyinstaller certifi
       - name: Build Skurra.app for Intel and Apple chips
         run: >
           pyinstaller --noconfirm --windowed --name Skurra

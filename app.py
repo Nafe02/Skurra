@@ -13,8 +13,10 @@ import os
 import plistlib
 import shutil
 import signal
+import ssl
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -30,11 +32,26 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
 # Point this at your own GitHub once you have one.
+# A packaged app carries no trusted certificates of its own, so every https
+# call fails with CERTIFICATE_VERIFY_FAILED unless we hand it a bundle.
+try:
+    import certifi
+    HTTPS = ssl.create_default_context(cafile=certifi.where())
+except Exception:
+    HTTPS = ssl.create_default_context()
+
+# The files an update comes from. Fixed here on purpose: latest.json says
+# which version is out, it never gets to say where Skurra downloads from.
+DOWNLOAD = {
+    "mac": "https://github.com/nafe02/Skurra/releases/latest/download/Skurra.dmg",
+    "windows": "https://github.com/nafe02/Skurra/releases/latest/download/Skurra.exe",
+}
+
 UPDATE_URL = os.environ.get("SKURRA_UPDATE_URL") or \
     "https://raw.githubusercontent.com/nafe02/Skurra/main/latest.json"
 
@@ -1161,14 +1178,15 @@ def as_tuple(v):
 update_cache = None
 
 def check_update():
-    """Fetch latest.json once per run. Any failure means 'no update'."""
+    """Ask latest.json what is out. A failed look is not remembered, so a
+    machine that was offline at launch still finds the update later."""
     global update_cache
-    if update_cache is not None:
+    if update_cache is not None and update_cache.get("latest") != update_cache.get("current"):
         return update_cache
     info = {"current": VERSION, "latest": VERSION, "available": False, "url": "", "notes": "",
             "os": "windows" if WINDOWS else "mac"}
     try:
-        with urllib.request.urlopen(UPDATE_URL, timeout=4) as r:
+        with urllib.request.urlopen(UPDATE_URL, timeout=6, context=HTTPS) as r:
             latest = json.loads(r.read().decode())
         info["latest"] = str(latest.get("version", VERSION))
         info["url"] = str(latest.get("url", ""))
@@ -1178,6 +1196,94 @@ def check_update():
         pass
     update_cache = info
     return info
+
+
+# ---------------------------------------------------------------- installing an update
+
+installing = {"stage": "", "pct": 0, "error": ""}
+
+
+def packaged():
+    """True when this is the built app, not app.py run from the source."""
+    return getattr(sys, "frozen", False)
+
+
+def app_path():
+    """The thing an update has to replace."""
+    exe = Path(sys.executable)
+    if WINDOWS:
+        return exe                                  # Skurra.exe
+    return exe.parents[2]                           # .../Skurra.app
+
+
+def fetch(url, into, on_bit):
+    with urllib.request.urlopen(url, timeout=30, context=HTTPS) as r:
+        total = int(r.headers.get("Content-Length") or 0)
+        got = 0
+        with open(into, "wb") as f:
+            while True:
+                chunk = r.read(64 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+                got += len(chunk)
+                if total:
+                    on_bit(int(got / total * 100))
+    return into
+
+
+def install_update():
+    """Download the new Skurra, then hand over to a script that swaps it in.
+
+    A running program cannot replace its own files, so a small script waits
+    for this process to quit, puts the new one in place and starts it again.
+    """
+    installing.update(stage="downloading", pct=0, error="")
+    try:
+        work = Path(tempfile.mkdtemp(prefix="skurra-update-"))
+        url = DOWNLOAD["windows" if WINDOWS else "mac"]
+        target = app_path()
+
+        if WINDOWS:
+            fresh = fetch(url, work / "Skurra.exe", lambda p: installing.update(pct=p))
+            installing.update(stage="installing", pct=100)
+            script = work / "swap.bat"
+            script.write_text(
+                "@echo off\r\n"
+                f':wait\r\ntasklist /FI "PID eq {os.getpid()}" | find "{os.getpid()}" >nul\r\n'
+                "if not errorlevel 1 (timeout /t 1 /nobreak >nul & goto wait)\r\n"
+                f'copy /Y "{fresh}" "{target}" >nul\r\n'
+                f'start "" "{target}"\r\n'
+                f'rmdir /S /Q "{work}"\r\n')
+            subprocess.Popen(["cmd", "/c", str(script)],
+                             creationflags=0x00000008 | 0x00000200)   # detached, new group
+        else:
+            dmg = fetch(url, work / "Skurra.dmg", lambda p: installing.update(pct=p))
+            installing.update(stage="installing", pct=100)
+            mount = work / "mnt"
+            mount.mkdir()
+            subprocess.run(["hdiutil", "attach", str(dmg), "-mountpoint", str(mount),
+                            "-nobrowse", "-quiet"], check=True, timeout=120)
+            staged = work / "Skurra.app"
+            subprocess.run(["cp", "-R", str(mount / "Skurra.app"), str(staged)],
+                           check=True, timeout=300)
+            subprocess.run(["hdiutil", "detach", str(mount), "-quiet"], timeout=60)
+
+            script = work / "swap.sh"
+            script.write_text(
+                "#!/bin/bash\n"
+                f"while kill -0 {os.getpid()} 2>/dev/null; do sleep 0.5; done\n"
+                f'rm -rf "{target}"\n'
+                f'cp -R "{staged}" "{target}"\n'
+                f'open "{target}"\n'
+                f'rm -rf "{work}"\n')
+            script.chmod(0o755)
+            subprocess.Popen(["/bin/bash", str(script)], start_new_session=True)
+
+        installing.update(stage="restarting")
+        threading.Timer(1.0, lambda: os._exit(0)).start()
+    except Exception as e:
+        installing.update(stage="failed", error=str(e))
 
 
 # ---------------------------------------------------------------- server
@@ -1206,6 +1312,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply(bin_state())
         elif self.path == "/api/binitems":
             self.reply(bin_items())
+        elif self.path == "/api/installing":
+            self.reply(installing)
         elif self.path == "/api/update":
             self.reply(check_update())
         elif self.path == "/api/roots":
@@ -1233,6 +1341,19 @@ class Handler(SimpleHTTPRequestHandler):
             if ok:
                 webbrowser.open(url)          # the user's normal browser, not our window
             self.reply({"ok": ok})
+            return
+
+        if self.path == "/api/install-update":
+            if not packaged():
+                self.reply({"ok": False,
+                            "why": "This copy runs from the source. Pull the code instead."})
+                return
+            info = check_update()
+            if not info["available"]:
+                self.reply({"ok": False, "why": "You are already on the newest version."})
+                return
+            threading.Thread(target=install_update, daemon=True).start()
+            self.reply({"ok": True})
             return
 
         if self.path == "/api/binremove":

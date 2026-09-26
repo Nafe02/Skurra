@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Disk space view, application logs and installation files, and fixes for Windows."
+  "notes": "Skurra now updates itself: one click, no website, no dragging. Plus a Trash you can pick from."
 }

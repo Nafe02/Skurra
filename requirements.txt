@@ -1,3 +1,4 @@
 pywebview
 pyinstaller
 send2trash
+certifi
