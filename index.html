@@ -192,12 +192,17 @@ h3.important { color: #b5643d; }
 .skip b { color: var(--ink); font-weight: 500; }
 .foot { margin-top: var(--step); padding-top: var(--step);
         border-top: 1px solid var(--rule); color: var(--dim); font-size: 13px; }
-.bin {
-  display: none; align-items: center; gap: 14px; margin-top: 12px;
-  padding: 14px 16px; background: var(--card); border-radius: var(--round);
-  border: 1px dashed var(--rule);
-}
-.bin.on { display: flex; }
+.bin { display: none; margin-top: 12px; border-style: dashed; }
+.bin.on { display: block; }
+.binbar { display: flex; align-items: center; gap: 9px; margin-top: 12px; }
+.binbar .spacer { flex: 1; }
+.binbar button { font-size: 13px; padding: 8px 14px; }
+.brow { display: flex; align-items: center; gap: 11px; padding: 9px 12px; margin-bottom: 4px;
+        border-radius: 9px; background: var(--paper); }
+.brow input { width: 16px; height: 16px; accent-color: var(--patina); cursor: pointer; flex: none; }
+.brow b { flex: 1; font-weight: 400; min-width: 0;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brow span { color: var(--dim); font-size: 13px; }
 .update { display: none; align-items: center; gap: 14px; margin: 0 0 var(--step);
           padding: 14px 16px; border-radius: var(--round);
           background: var(--card); border: 1px solid var(--patina); }
@@ -297,10 +302,18 @@ h3.important { color: #b5643d; }
     </div>
   </div>
 
-  <div class="bin" id="bin">
-    <span class="who"><b id="bintitle">Trash</b><em id="binmsg"></em></span>
-    <button id="empty">Empty Trash</button>
-  </div>
+  <details class="box bin" id="bin" ontoggle="if (this.open) loadBinItems()">
+    <summary><span id="bintitle">Trash</span> <span class="meta" id="binmsg"></span></summary>
+    <div class="inner">
+      <p class="sub" id="binsub"></p>
+      <div id="binlist"><div class="empty2">Opening\u2026</div></div>
+      <div class="binbar">
+        <button id="binpick" type="button" disabled>Delete selected</button>
+        <span class="spacer"></span>
+        <button id="empty" type="button">Empty it all</button>
+      </div>
+    </div>
+  </details>
 
   <details class="box" id="box-log" ontoggle="if (this.open) loadLog()">
     <summary>What Skurra has moved <span class="meta" id="meta-log"></span></summary>
@@ -411,8 +424,47 @@ async function loadBin() {
     const what = b.items !== null
       ? `${b.items} item${b.items === 1 ? "" : "s"} in the ${T()}${b.mb ? `, about ${size(b.mb)} of it from Skurra` : ""}`
       : `${b.ours} item${b.ours === 1 ? "" : "s"} Skurra put in the ${T()}, about ${size(b.mb)}`;
-    $("#binmsg").textContent = show ? `${what}. Emptying deletes everything in it for good.` : "";
+    $("#bintitle").textContent = T();
+    $("#binmsg").textContent = show ? what : "";
+    $("#binsub").textContent = show
+      ? `Tick what you want gone for good, or empty the whole ${T()}. Nothing here can be undone.`
+      : "";
+    if (show && $("#bin").open) loadBinItems();
   } catch (e) {}
+}
+
+const binPick = new Set();
+
+function refreshBin() {
+  const n = binPick.size;
+  $("#binpick").disabled = !n;
+  $("#binpick").textContent = n ? `Delete selected (${n})` : "Delete selected";
+}
+
+async function loadBinItems() {
+  const list = $("#binlist");
+  list.innerHTML = `<div class="empty2">Looking in the ${T()}\u2026</div>`;
+  binPick.clear(); refreshBin();
+  try {
+    const items = await (await fetch("/api/binitems")).json();
+    if (!items.length) {
+      list.innerHTML = `<div class="empty2">Skurra could not read the ${T()}. You can still empty it.</div>`;
+      return;
+    }
+    list.innerHTML = items.map(i => `
+      <div class="brow">
+        <input type="checkbox" data-name="${i.name.replace(/"/g, "&quot;")}">
+        <b>${i.name}</b><span>${i.mb ? size(i.mb) : ""}</span>
+      </div>`).join("");
+    for (const box of list.querySelectorAll("input")) {
+      box.onchange = () => {
+        box.checked ? binPick.add(box.dataset.name) : binPick.delete(box.dataset.name);
+        refreshBin();
+      };
+    }
+  } catch (e) {
+    list.innerHTML = `<div class="empty2">Could not read the ${T()}.</div>`;
+  }
 }
 
 async function loadLog() {
@@ -816,6 +868,24 @@ $("#clear").onclick = async () => {
     busy(false);
     note("Nothing cleared. Check the Terminal window.");
   }
+};
+
+$("#binpick").onclick = async () => {
+  const names = [...binPick];
+  if (!confirm(`Delete these for good?\n\n${names.join("\n")}\n\nThis cannot be undone.`)) return;
+  $("#binpick").disabled = true;
+  note(`Deleting ${names.length} item${names.length === 1 ? "" : "s"}.`);
+  try {
+    const res = await (await fetch("/api/binremove",
+      { method: "POST", body: JSON.stringify(names) })).json();
+    note(`Deleted ${res.done} of ${res.asked} for good.`
+      + (res.failed.length ? ` Could not delete ${res.failed.join(", ")}.` : ""));
+    loadLog();
+  } catch (e) {
+    note(`Nothing was deleted. Check the ${T()} yourself.`);
+  }
+  await loadBin();
+  loadBinItems();
 };
 
 $("#empty").onclick = async () => {
