@@ -1049,6 +1049,85 @@ def bin_state():
     return {"items": items, "ours": ours, "mb": round(mb, 1)}
 
 
+def bin_items():
+    """What is sitting in the Trash, by name and size.
+
+    macOS will not let us read ~/.Trash without Full Disk Access, and Windows
+    hides the Recycle Bin the same way, so both are asked through the shell
+    that owns them.
+    """
+    if WINDOWS:
+        ps = ("$s=New-Object -ComObject Shell.Application;"
+              "$s.Namespace(10).Items() | ForEach-Object {"
+              "  $n=$_.Name; $z=$s.Namespace(10).GetDetailsOf($_,3);"
+              "  Write-Output \"$n`t$z\" }")
+        try:
+            r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                               capture_output=True, text=True, timeout=20)
+        except (OSError, subprocess.TimeoutExpired):
+            return []
+        out = []
+        for line in r.stdout.splitlines():
+            name, _, _size = line.partition("\t")
+            if name.strip():
+                out.append({"name": name.strip(), "mb": 0})
+        return out
+
+    def ask(script):
+        try:
+            r = subprocess.run(["osascript", "-e", script],
+                               capture_output=True, text=True, timeout=25)
+            return r.stdout.strip() if r.returncode == 0 else ""
+        except (OSError, subprocess.TimeoutExpired):
+            return ""
+
+    names = ask('tell application "Finder" to get name of every item of trash')
+    if not names:
+        return []
+    names = [n.strip() for n in names.split(",") if n.strip()]
+    sizes = ask('tell application "Finder" to get size of every item of trash')
+    numbers = []
+    for bit in sizes.split(","):
+        try:
+            numbers.append(float(bit.strip()))
+        except ValueError:
+            numbers.append(0)
+
+    out = []
+    for n, name in enumerate(names):
+        by = numbers[n] if n < len(numbers) else 0
+        out.append({"name": name, "mb": round(by / 1024 / 1024, 1)})
+    out.sort(key=lambda r: r["mb"], reverse=True)
+    return out
+
+
+def bin_remove(names):
+    """Delete these, by name, out of the Trash for good."""
+    gone, failed = 0, []
+    for name in names:
+        if not name or any(c in name for c in '"\\'):
+            failed.append(name)
+            continue
+        if WINDOWS:
+            ps = ("$s=New-Object -ComObject Shell.Application;"
+                  "$s.Namespace(10).Items() | Where-Object { $_.Name -eq "
+                  f"'{name}'" + " } | ForEach-Object {"
+                  " Remove-Item -LiteralPath $_.Path -Recurse -Force }")
+            cmd = ["powershell", "-NoProfile", "-Command", ps]
+        else:
+            cmd = ["osascript", "-e",
+                   f'tell application "Finder" to delete (every item of trash whose name is "{name}")']
+        try:
+            r = subprocess.run(cmd, capture_output=True, timeout=120)
+            if r.returncode == 0:
+                gone += 1
+            else:
+                failed.append(name)
+        except (OSError, subprocess.TimeoutExpired):
+            failed.append(name)
+    return gone, failed
+
+
 def record(entry):
     try:
         with open(MOVED_LOG, "a") as f:
@@ -1125,6 +1204,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply(recent())
         elif self.path == "/api/bin":
             self.reply(bin_state())
+        elif self.path == "/api/binitems":
+            self.reply(bin_items())
         elif self.path == "/api/update":
             self.reply(check_update())
         elif self.path == "/api/roots":
@@ -1152,6 +1233,16 @@ class Handler(SimpleHTTPRequestHandler):
             if ok:
                 webbrowser.open(url)          # the user's normal browser, not our window
             self.reply({"ok": ok})
+            return
+
+        if self.path == "/api/binremove":
+            names = [str(x) for x in body] if isinstance(body, list) else []
+            gone, failed = bin_remove(names)
+            for name in names:
+                record({"at": stamp, "did": "failed" if name in failed else "deleted for good",
+                        "name": name, "path": str(TRASH)})
+            self.reply({"done": gone, "asked": len(names), "failed": failed,
+                        "bin": bin_state()})
             return
 
         if self.path == "/api/empty":
