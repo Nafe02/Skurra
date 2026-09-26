@@ -1,5 +1,5 @@
 {
-  "version": "1.3.0",
+  "version": "1.4.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Skurra now updates itself: one click, no website, no dragging. Plus a Trash you can pick from."
+  "notes": "All the folder permissions in one place, and a folder you allow is no longer skipped for ever."
 }
