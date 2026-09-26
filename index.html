@@ -207,6 +207,22 @@ h3.important { color: #b5643d; }
           padding: 14px 16px; border-radius: var(--round);
           background: var(--card); border: 1px solid var(--patina); }
 .update.on { display: flex; }
+.perms { display: none; margin: 0 0 var(--step); padding: 16px;
+         background: var(--card); border: 1px solid var(--rule); border-radius: var(--round); }
+.perms.on { display: block; }
+.permhead b { display: block; font-size: 16px; margin-bottom: 3px; }
+.permhead span { color: var(--dim); font-size: 13px; }
+.permrows { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 0; }
+.permrow { display: flex; align-items: center; gap: 7px; padding: 6px 12px; font-size: 13px;
+           border-radius: 99px; background: var(--paper); border: 1px solid var(--rule); }
+.permrow i { width: 8px; height: 8px; border-radius: 50%; background: var(--rule); flex: none; }
+.permrow.ok i { background: var(--patina); }
+.permrow.no i { background: #b5643d; }
+.permrow.asking i { background: var(--amber); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.permbar { display: flex; align-items: center; gap: 9px; margin-top: 14px; flex-wrap: wrap; }
+.permbar .spacer { flex: 1; }
+.permbar button { font-size: 13px; padding: 8px 14px; }
 .update .who { flex: 1; }
 .ver { color: var(--dim); font-size: 12px; margin-top: 8px; }
 .bin .who { flex: 1; }
@@ -220,6 +236,20 @@ h3.important { color: #b5643d; }
 <main>
   <h1>Skurra: AI Storage Cleaner</h1>
   <p class="warn" id="warn"></p>
+
+  <div class="perms" id="perms">
+    <div class="permhead">
+      <b>Let Skurra look in your folders</b>
+      <span>macOS asks once per folder. Allow all walks you through them, then it stops asking.</span>
+    </div>
+    <div class="permrows" id="permrows"></div>
+    <div class="permbar">
+      <button class="go" id="permall" type="button">Allow all</button>
+      <button id="permsettings" type="button">Do it in System Settings</button>
+      <span class="spacer"></span>
+      <button id="permhide" type="button">Not now</button>
+    </div>
+  </div>
 
   <div class="update" id="update">
     <span class="who"><b>Skurra <span id="upver"></span> is ready</b><em id="upnotes"></em></span>
@@ -968,7 +998,56 @@ async function installUpdate(u) {
   }, 600);
 }
 
-checkUpdate().then(loadBin);      // know which OS we are on before wording the bin
+// ---- permissions, all in one place ----
+let perms = [];
+
+function drawPerms() {
+  $("#permrows").innerHTML = perms.map(f =>
+    `<span class="permrow ${f.ok ? "ok" : "no"}" data-path="${f.path}"><i></i>${f.name}</span>`).join("");
+  const blocked = perms.filter(f => !f.ok);
+  $("#perms").classList.toggle("on", blocked.length > 0);
+  $("#permall").textContent = blocked.length
+    ? `Allow all (${blocked.length})` : "Allow all";
+}
+
+async function loadPerms() {
+  try {
+    const d = await (await fetch("/api/permissions")).json();
+    if (!d.mac) return;                       // Windows does not gate folders this way
+    perms = d.folders;
+    drawPerms();
+  } catch (e) {}
+}
+
+$("#permall").onclick = async () => {
+  const todo = perms.filter(f => !f.ok);
+  $("#permall").disabled = true;
+  for (const f of todo) {
+    const chip = $(`.permrow[data-path="${f.path}"]`);
+    if (chip) { chip.className = "permrow asking"; }
+    $("#permall").textContent = `Asking for ${f.name}\u2026`;
+    try {
+      const r = await (await fetch("/api/permission-ask",
+        { method: "POST", body: JSON.stringify({ path: f.path }) })).json();
+      f.ok = r.ok;
+    } catch (e) {}
+    drawPerms();
+  }
+  $("#permall").disabled = false;
+  const left = perms.filter(f => !f.ok);
+  note(left.length
+    ? `Still waiting on ${left.map(f => f.name).join(", ")}. System Settings can grant them all at once.`
+    : "Skurra can see all your folders now.");
+};
+
+$("#permsettings").onclick = () => {
+  fetch("/api/open-privacy", { method: "POST", body: "{}" });
+  note("Turn Skurra on under Full Disk Access, then come back and press Scan.");
+};
+
+$("#permhide").onclick = () => $("#perms").classList.remove("on");
+
+checkUpdate().then(loadBin).then(loadPerms);      // know which OS we are on before wording the bin
 loadLog();
 </script>
 </body>

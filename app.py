@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -590,9 +590,12 @@ def scan():
 
     for item, where, kind in targets:
         if str(item) in guarded:
-            skipped.append({"name": item.name, "where": where, "mb": 0,
-                            "why": "macOS wants permission for this one"})
-            continue
+            if not can_read(item, 1.5):        # still shut: leave it be
+                skipped.append({"name": item.name, "where": where, "mb": 0,
+                                "why": "macOS wants permission for this one"})
+                continue
+            guarded.discard(str(item))         # they have since let us in
+            save_guarded(guarded)
         if str(item) in stuck_paths:
             if still_locked(item):
                 try:
@@ -1198,6 +1201,46 @@ def check_update():
     return info
 
 
+# ---------------------------------------------------------------- permissions
+
+def can_read(path, seconds=2):
+    """Can we list this folder? Never waits on a dialog for long."""
+    return without_hanging(lambda: bool(os.listdir(path) is not None), seconds) is not None
+
+
+def permissions():
+    """Every folder Skurra wants, and whether macOS is letting it in."""
+    out = []
+    for r in disk_roots():
+        if r == HOME:
+            continue
+        out.append({"name": r.name, "path": str(r), "ok": can_read(r)})
+    return out
+
+
+def ask_permission(path):
+    """Touch the folder so the system puts its dialog up, and wait for an answer.
+
+    The dialog belongs to the system, not to us: all we can do is knock and
+    give the person time to answer.
+    """
+    got = without_hanging(lambda: os.listdir(path), 45) is not None
+    if got:                                   # they said yes: forget we ever failed
+        known = load_guarded()
+        for gone in [g for g in known if g == str(path) or g.startswith(str(path) + os.sep)]:
+            known.discard(gone)
+        save_guarded(known)
+    return got
+
+
+def open_privacy_settings():
+    if WINDOWS:
+        return False
+    pane = "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+    subprocess.run(["open", pane], capture_output=True)
+    return True
+
+
 # ---------------------------------------------------------------- installing an update
 
 installing = {"stage": "", "pct": 0, "error": ""}
@@ -1314,6 +1357,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply(bin_items())
         elif self.path == "/api/installing":
             self.reply(installing)
+        elif self.path == "/api/permissions":
+            self.reply({"folders": permissions(), "mac": not WINDOWS})
         elif self.path == "/api/update":
             self.reply(check_update())
         elif self.path == "/api/roots":
@@ -1341,6 +1386,18 @@ class Handler(SimpleHTTPRequestHandler):
             if ok:
                 webbrowser.open(url)          # the user's normal browser, not our window
             self.reply({"ok": ok})
+            return
+
+        if self.path == "/api/permission-ask":
+            want = str(body.get("path", "")) if isinstance(body, dict) else ""
+            if not (want == str(HOME) or inside_home(want)):
+                self.reply({"ok": False})
+                return
+            self.reply({"ok": ask_permission(want)})
+            return
+
+        if self.path == "/api/open-privacy":
+            self.reply({"ok": open_privacy_settings()})
             return
 
         if self.path == "/api/install-update":
