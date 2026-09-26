@@ -224,7 +224,7 @@ h3.important { color: #b5643d; }
   <div class="update" id="update">
     <span class="who"><b>Skurra <span id="upver"></span> is ready</b><em id="upnotes"></em></span>
     <button id="uplater">Later</button>
-    <button class="go" id="upget">Get the update</button>
+    <button class="go" id="upget">Update now</button>
   </div>
 
   <div class="bar">
@@ -918,13 +918,54 @@ async function checkUpdate() {
     $("#upver").textContent = u.latest;
     $("#upnotes").textContent = u.notes || "A newer version is available.";
     $("#update").classList.add("on");
-    $("#upget").onclick = () =>
-      fetch("/api/open", { method: "POST", body: JSON.stringify({ url: u.url }) });
+    $("#upget").onclick = () => installUpdate(u);
     $("#uplater").onclick = () => {
       try { localStorage.setItem("skipVersion", u.latest); } catch (e) {}
       $("#update").classList.remove("on");
     };
   } catch (e) {}
+}
+
+// Skurra replaces itself: download, swap, restart. No browser, no dragging.
+async function installUpdate(u) {
+  const get = $("#upget"), later = $("#uplater"), notes = $("#upnotes");
+  get.disabled = true; later.disabled = true;
+  get.textContent = "Starting\u2026";
+  notes.textContent = "Downloading the new version. Skurra will restart on its own.";
+  try {
+    const res = await (await fetch("/api/install-update", { method: "POST", body: "{}" })).json();
+    if (!res.ok) {
+      notes.textContent = res.why + " You can also download it yourself.";
+      get.textContent = "Open the download page";
+      get.disabled = false; later.disabled = false;
+      get.onclick = () => fetch("/api/open", { method: "POST", body: JSON.stringify({ url: u.url }) });
+      return;
+    }
+  } catch (e) {
+    notes.textContent = "Could not start the update.";
+    get.textContent = "Update now"; get.disabled = false; later.disabled = false;
+    return;
+  }
+
+  const tick = setInterval(async () => {
+    let p;
+    try { p = await (await fetch("/api/installing")).json(); }
+    catch (e) { return; }                       // it is restarting: the server is going
+    if (p.stage === "downloading") get.textContent = `Downloading ${p.pct}%`;
+    if (p.stage === "installing") get.textContent = "Installing\u2026";
+    if (p.stage === "restarting") {
+      clearInterval(tick);
+      get.textContent = "Restarting\u2026";
+      notes.textContent = "Skurra is closing and will open again in a moment.";
+    }
+    if (p.stage === "failed") {
+      clearInterval(tick);
+      notes.textContent = "That did not work: " + p.error;
+      get.textContent = "Open the download page";
+      get.disabled = false; later.disabled = false;
+      get.onclick = () => fetch("/api/open", { method: "POST", body: JSON.stringify({ url: u.url }) });
+    }
+  }, 600);
 }
 
 checkUpdate().then(loadBin);      // know which OS we are on before wording the bin
