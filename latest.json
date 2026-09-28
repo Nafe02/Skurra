@@ -1,5 +1,5 @@
 {
-  "version": "1.7.0",
+  "version": "1.8.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Windows updates wait for the old copy to let go, check the new one really runs, and put the old one back if it does not."
+  "notes": "A download that stalls now picks up where it left off instead of failing the whole update."
 }
