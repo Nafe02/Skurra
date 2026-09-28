@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1263,7 +1263,7 @@ def open_privacy_settings():
 
 # ---------------------------------------------------------------- installing an update
 
-installing = {"stage": "", "pct": 0, "error": "", "got": 0, "total": 0}
+installing = {"stage": "", "pct": 0, "error": "", "got": 0, "total": 0, "attempt": 1}
 
 RESULT_FILE = DATA / "update-result.json"
 
@@ -1300,19 +1300,47 @@ def app_path():
     return exe.parents[2]                           # .../Skurra.app
 
 
-def fetch(url, into, on_bit):
-    """Download a file, and refuse to hand back a half-finished one."""
-    with urllib.request.urlopen(url, timeout=30, context=HTTPS) as r:
-        total = int(r.headers.get("Content-Length") or 0)
-        got = 0
-        with open(into, "wb") as f:
-            while True:
-                chunk = r.read(64 * 1024)
-                if not chunk:
-                    break
-                f.write(chunk)
-                got += len(chunk)
-                on_bit(int(got / total * 100) if total else 0, got, total)
+def fetch(url, into, on_bit, tries=3):
+    """Download a file, surviving a stall, and refuse a half-finished one.
+
+    A wobbly connection used to end the whole update: one read that took
+    too long raised, and there was no second go. Now a stall just means
+    reconnecting and carrying on from the byte we reached.
+    """
+    got, total = 0, 0
+    last = ""
+
+    for attempt in range(1, tries + 1):
+        req = urllib.request.Request(url)
+        if got:
+            req.add_header("Range", f"bytes={got}-")      # carry on, do not restart
+        try:
+            with urllib.request.urlopen(req, timeout=60, context=HTTPS) as r:
+                if not total:
+                    size = int(r.headers.get("Content-Length") or 0)
+                    total = size + got if r.status == 206 else size
+                elif r.status != 206 and got:
+                    got = 0                                # server ignored Range: start over
+                    into.write_bytes(b"")
+                with open(into, "ab" if got else "wb") as f:
+                    while True:
+                        chunk = r.read(64 * 1024)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        got += len(chunk)
+                        on_bit(int(got / total * 100) if total else 0, got, total, attempt)
+            if not total or got >= total:
+                break
+            last = f"the connection closed after {got} of {total} bytes"
+        except Exception as e:
+            last = str(e) or e.__class__.__name__
+            got = into.stat().st_size if into.exists() else 0
+        if attempt < tries:
+            on_bit(int(got / total * 100) if total else 0, got, total, attempt + 1)
+            time.sleep(1.5)
+    else:
+        raise OSError(f"the download kept stopping ({last})")
 
     if total and got != total:
         raise OSError(f"the download stopped early, {got} of {total} bytes")
@@ -1335,8 +1363,8 @@ def install_update():
     """
     installing.update(stage="downloading", pct=0, error="", got=0, total=0)
 
-    def bit(pct, got, total):
-        installing.update(pct=pct, got=got, total=total)
+    def bit(pct, got, total, attempt=1):
+        installing.update(pct=pct, got=got, total=total, attempt=attempt)
 
     try:
         work = Path(tempfile.mkdtemp(prefix="skurra-update-"))

@@ -1001,13 +1001,20 @@ async function installUpdate(u) {
 
     if (p.stage === "downloading") {
       bar.firstElementChild.style.width = (p.pct || 0) + "%";
-      const secs = (Date.now() - began) / 1000;
-      const rate = secs > 1 && p.got ? p.got / secs : 0;
-      const left = rate && p.total ? Math.round((p.total - p.got) / rate) : 0;
-      $("#upnotes").textContent = p.total
-        ? `${size(p.got / 1048576)} of ${size(p.total / 1048576)}`
-          + (left > 0 ? ` \u00b7 about ${left} second${left === 1 ? "" : "s"} left` : "")
-        : `${size(p.got / 1048576)} so far`;
+      if (p.attempt > 1) {
+        // Say it is retrying rather than letting the bar sit there looking stuck.
+        $("#upnotes").textContent =
+          `Connection stalled, trying again (${p.attempt} of 3)\u2026 `
+          + `${size(p.got / 1048576)} kept so far.`;
+      } else {
+        const secs = (Date.now() - began) / 1000;
+        const rate = secs > 1 && p.got ? p.got / secs : 0;
+        const left = rate && p.total ? Math.round((p.total - p.got) / rate) : 0;
+        $("#upnotes").textContent = p.total
+          ? `${size(p.got / 1048576)} of ${size(p.total / 1048576)}`
+            + (left > 0 ? ` \u00b7 about ${left} second${left === 1 ? "" : "s"} left` : "")
+          : `${size(p.got / 1048576)} so far`;
+      }
     }
     if (p.stage === "installing") {
       bar.firstElementChild.style.width = "100%";
