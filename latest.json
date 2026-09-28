@@ -1,5 +1,5 @@
 {
-  "version": "1.6.0",
+  "version": "1.7.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Windows no longer lists your Temp files twice, once as caches and once as logs."
+  "notes": "Windows updates wait for the old copy to let go, check the new one really runs, and put the old one back if it does not."
 }

@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1353,26 +1353,73 @@ def install_update():
             # say what went wrong. The script lives outside the folder it
             # deletes, or it would hold that folder open and leak it.
             script = Path(tempfile.gettempdir()) / f"skurra-swap-{os.getpid()}.ps1"
+            # PowerShell, not a .bat: it can wait properly, prove the new copy
+            # runs, and put the old one back if it does not.
             script.write_text(f"""
-$ErrorActionPreference = 'Stop'
 $target = {ps_quote(str(target))}
 $fresh  = {ps_quote(str(fresh))}
 $work   = {ps_quote(str(work))}
 $result = {ps_quote(result)}
+$backup = "$target.bak"
 $ok = $false
-$why = ''
+$why = 'the update did not finish'
+
+function Save-Note {{
+  try {{
+    $note = @{{ ok = $ok; error = $why; version = {ps_quote(want)} }} | ConvertTo-Json
+    New-Item -ItemType Directory -Force -Path (Split-Path $result) | Out-Null
+    Set-Content -LiteralPath $result -Value $note -Encoding UTF8
+  }} catch {{}}
+}}
+
 try {{
   try {{ Wait-Process -Id {os.getpid()} -Timeout 60 -ErrorAction SilentlyContinue }} catch {{}}
-  # Windows can hold the image open for a moment after the process goes.
+
+  # Waiting on the process id is not enough. Skurra unpacks itself into a
+  # _MEI folder named after that id, and Windows hands the id straight back
+  # out, so a copy started too soon can unpack into the very folder the old
+  # one is still deleting and lose its own python dll. Wait until the file
+  # itself can be opened for writing, which means every handle is gone, then
+  # give the old copy a moment to finish clearing up after itself.
+  for ($i = 0; $i -lt 40; $i++) {{
+    try {{
+      $h = [System.IO.File]::Open($target, 'Open', 'Write', 'None')
+      $h.Close(); break
+    }} catch {{ Start-Sleep -Milliseconds 500 }}
+  }}
+  Start-Sleep -Seconds 2
+
+  Copy-Item -LiteralPath $target -Destination $backup -Force -ErrorAction SilentlyContinue
+
+  $copied = $false
   for ($i = 0; $i -lt 10; $i++) {{
-    try {{ Copy-Item -LiteralPath $fresh -Destination $target -Force; $ok = $true; break }}
+    try {{ Copy-Item -LiteralPath $fresh -Destination $target -Force; $copied = $true; break }}
     catch {{ $why = $_.Exception.Message; Start-Sleep -Milliseconds 700 }}
   }}
+
+  if ($copied) {{
+    # Started, but does it actually run? Only a copy that is still alive a
+    # moment later counts as an update.
+    $p = Start-Process -FilePath $target -PassThru
+    Start-Sleep -Seconds 15
+    if ($p -and -not $p.HasExited) {{
+      $ok = $true; $why = ''
+      Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+    }} else {{
+      $why = 'the new version would not start, so the old one was put back'
+      if (Test-Path -LiteralPath $backup) {{
+        Copy-Item -LiteralPath $backup -Destination $target -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+      }}
+    }}
+  }}
 }} catch {{ $why = $_.Exception.Message }}
-$note = @{{ ok = $ok; error = $why; version = {ps_quote(want)} }} | ConvertTo-Json
-New-Item -ItemType Directory -Force -Path (Split-Path $result) | Out-Null
-Set-Content -LiteralPath $result -Value $note -Encoding UTF8
-Start-Process -FilePath $target
+
+Save-Note
+# Whatever happened above, the person must end up with a Skurra open.
+if (-not $ok) {{
+  try {{ Start-Process -FilePath $target }} catch {{}}
+}}
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
 """, encoding="utf-8")
