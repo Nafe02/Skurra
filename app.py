@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -89,7 +89,9 @@ else:
 
 # Logs an app wrote and never read again, and installers you already used.
 if WINDOWS:
-    LOG_DIRS = [LOCAL / "Temp", HOME / "AppData/Local/CrashDumps"]
+    # Not Temp: that is already the Caches folder on Windows, and listing it
+    # here as well put every file in two drawers and counted it twice.
+    LOG_DIRS = [LOCAL / "CrashDumps", ROAMING / "Microsoft/Windows/WER"]
 else:
     LOG_DIRS = [HOME / "Library/Logs"]
 
@@ -572,6 +574,15 @@ def scan():
                 spot = app / name
                 if spot.is_dir():
                     targets.append((spot, app.name, "cache"))
+
+    # One entry per folder, whatever route it arrived by.
+    seen_paths, once = set(), []
+    for item, where, kind in targets:
+        if str(item) in seen_paths:
+            continue
+        seen_paths.add(str(item))
+        once.append((item, where, kind))
+    targets = once
 
     # budget the progress bar by bytes, using last run's sizes
     weights = {}
