@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -48,8 +48,8 @@ except Exception:
 # The files an update comes from. Fixed here on purpose: latest.json says
 # which version is out, it never gets to say where Skurra downloads from.
 DOWNLOAD = {
-    "mac": "https://github.com/nafe02/Skurra/releases/latest/download/Skurra.dmg",
-    "windows": "https://github.com/nafe02/Skurra/releases/latest/download/Skurra.exe",
+    "mac": "https://github.com/nafe02/Skurra/releases/download/{tag}/Skurra.dmg",
+    "windows": "https://github.com/nafe02/Skurra/releases/download/{tag}/Skurra.exe",
 }
 
 UPDATE_URL = os.environ.get("SKURRA_UPDATE_URL") or \
@@ -1179,6 +1179,15 @@ def as_tuple(v):
 
 
 update_cache = None
+last_swap = None
+
+def swap_report():
+    """Read how the last swap went, once, and hand it to the page."""
+    global last_swap
+    if last_swap is None:
+        last_swap = last_update_result() or {}
+    return last_swap
+
 
 def check_update():
     """Ask latest.json what is out. A failed look is not remembered, so a
@@ -1243,7 +1252,28 @@ def open_privacy_settings():
 
 # ---------------------------------------------------------------- installing an update
 
-installing = {"stage": "", "pct": 0, "error": ""}
+installing = {"stage": "", "pct": 0, "error": "", "got": 0, "total": 0}
+
+RESULT_FILE = DATA / "update-result.json"
+
+
+def last_update_result():
+    """How the previous swap went, read once and then forgotten."""
+    try:
+        out = json.loads(RESULT_FILE.read_text())
+        RESULT_FILE.unlink()
+        return out
+    except Exception:
+        return None
+
+
+def ps_quote(text):
+    """A PowerShell single-quoted string: only ' needs escaping, and % is inert."""
+    return "'" + str(text).replace("'", "''") + "'"
+
+
+def sh_quote(text):
+    return "'" + str(text).replace("'", "'\\''") + "'"
 
 
 def packaged():
@@ -1260,6 +1290,7 @@ def app_path():
 
 
 def fetch(url, into, on_bit):
+    """Download a file, and refuse to hand back a half-finished one."""
     with urllib.request.urlopen(url, timeout=30, context=HTTPS) as r:
         total = int(r.headers.get("Content-Length") or 0)
         got = 0
@@ -1270,8 +1301,16 @@ def fetch(url, into, on_bit):
                     break
                 f.write(chunk)
                 got += len(chunk)
-                if total:
-                    on_bit(int(got / total * 100))
+                on_bit(int(got / total * 100) if total else 0, got, total)
+
+    if total and got != total:
+        raise OSError(f"the download stopped early, {got} of {total} bytes")
+    if got < 1_000_000:
+        raise OSError("that download was too small to be Skurra")
+    with open(into, "rb") as f:
+        head = f.read(2)
+    if WINDOWS and head != b"MZ":              # a real .exe starts MZ
+        raise OSError("what came down was not a Windows program")
     return into
 
 
@@ -1280,28 +1319,57 @@ def install_update():
 
     A running program cannot replace its own files, so a small script waits
     for this process to quit, puts the new one in place and starts it again.
+    Whatever happens it writes update-result.json, which the next launch
+    reads: without that, a swap that went wrong is invisible.
     """
-    installing.update(stage="downloading", pct=0, error="")
+    installing.update(stage="downloading", pct=0, error="", got=0, total=0)
+
+    def bit(pct, got, total):
+        installing.update(pct=pct, got=got, total=total)
+
     try:
         work = Path(tempfile.mkdtemp(prefix="skurra-update-"))
-        url = DOWNLOAD["windows" if WINDOWS else "mac"]
+        want = check_update().get("latest") or VERSION
+        url = DOWNLOAD["windows" if WINDOWS else "mac"].format(tag=f"v{want}")
         target = app_path()
+        result = str(RESULT_FILE)
 
         if WINDOWS:
-            fresh = fetch(url, work / "Skurra.exe", lambda p: installing.update(pct=p))
+            fresh = fetch(url, work / "Skurra.exe", bit)
             installing.update(stage="installing", pct=100)
-            script = work / "swap.bat"
-            script.write_text(
-                "@echo off\r\n"
-                f':wait\r\ntasklist /FI "PID eq {os.getpid()}" | find "{os.getpid()}" >nul\r\n'
-                "if not errorlevel 1 (timeout /t 1 /nobreak >nul & goto wait)\r\n"
-                f'copy /Y "{fresh}" "{target}" >nul\r\n'
-                f'start "" "{target}"\r\n'
-                f'rmdir /S /Q "{work}"\r\n')
-            subprocess.Popen(["cmd", "/c", str(script)],
-                             creationflags=0x00000008 | 0x00000200)   # detached, new group
+
+            # PowerShell, not a .bat: it can wait properly, retry the copy and
+            # say what went wrong. The script lives outside the folder it
+            # deletes, or it would hold that folder open and leak it.
+            script = Path(tempfile.gettempdir()) / f"skurra-swap-{os.getpid()}.ps1"
+            script.write_text(f"""
+$ErrorActionPreference = 'Stop'
+$target = {ps_quote(str(target))}
+$fresh  = {ps_quote(str(fresh))}
+$work   = {ps_quote(str(work))}
+$result = {ps_quote(result)}
+$ok = $false
+$why = ''
+try {{
+  try {{ Wait-Process -Id {os.getpid()} -Timeout 60 -ErrorAction SilentlyContinue }} catch {{}}
+  # Windows can hold the image open for a moment after the process goes.
+  for ($i = 0; $i -lt 10; $i++) {{
+    try {{ Copy-Item -LiteralPath $fresh -Destination $target -Force; $ok = $true; break }}
+    catch {{ $why = $_.Exception.Message; Start-Sleep -Milliseconds 700 }}
+  }}
+}} catch {{ $why = $_.Exception.Message }}
+$note = @{{ ok = $ok; error = $why; version = {ps_quote(want)} }} | ConvertTo-Json
+New-Item -ItemType Directory -Force -Path (Split-Path $result) | Out-Null
+Set-Content -LiteralPath $result -Value $note -Encoding UTF8
+Start-Process -FilePath $target
+Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+""", encoding="utf-8")
+            subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                              "-WindowStyle", "Hidden", "-File", str(script)],
+                             creationflags=0x08000000)      # no window, but a console exists
         else:
-            dmg = fetch(url, work / "Skurra.dmg", lambda p: installing.update(pct=p))
+            dmg = fetch(url, work / "Skurra.dmg", bit)
             installing.update(stage="installing", pct=100)
             mount = work / "mnt"
             mount.mkdir()
@@ -1311,15 +1379,38 @@ def install_update():
             subprocess.run(["cp", "-R", str(mount / "Skurra.app"), str(staged)],
                            check=True, timeout=300)
             subprocess.run(["hdiutil", "detach", str(mount), "-quiet"], timeout=60)
+            if not (staged / "Contents/MacOS/Skurra").exists():
+                raise OSError("the downloaded app looks incomplete")
 
-            script = work / "swap.sh"
-            script.write_text(
-                "#!/bin/bash\n"
-                f"while kill -0 {os.getpid()} 2>/dev/null; do sleep 0.5; done\n"
-                f'rm -rf "{target}"\n'
-                f'cp -R "{staged}" "{target}"\n'
-                f'open "{target}"\n'
-                f'rm -rf "{work}"\n')
+            script = Path(tempfile.gettempdir()) / f"skurra-swap-{os.getpid()}.sh"
+            # Copy alongside first and swap only once that worked, so a failure
+            # can never leave the user with no app at all.
+            script.write_text(f"""#!/bin/bash
+target={sh_quote(str(target))}
+staged={sh_quote(str(staged))}
+work={sh_quote(str(work))}
+result={sh_quote(result)}
+ok=false; why=""
+for i in $(seq 1 120); do kill -0 {os.getpid()} 2>/dev/null || break; sleep 0.5; done
+if cp -R "$staged" "$target.new" 2>/tmp/skurra-swap-err; then
+  rm -rf "$target.old"
+  if mv "$target" "$target.old" 2>>/tmp/skurra-swap-err &&
+     mv "$target.new" "$target" 2>>/tmp/skurra-swap-err; then
+    ok=true; rm -rf "$target.old"
+  else
+    why="could not put the new app in place"
+    [ -d "$target.old" ] && [ ! -e "$target" ] && mv "$target.old" "$target"
+    rm -rf "$target.new"
+  fi
+else
+  why="could not copy the new app"
+fi
+[ "$ok" = false ] && why="$why: $(tail -1 /tmp/skurra-swap-err 2>/dev/null)"
+mkdir -p "$(dirname "$result")"
+printf '{{"ok": %s, "error": "%s", "version": "%s"}}\n' "$ok" "${{why//\"/}}" {sh_quote(want)} > "$result"
+open "$target"
+rm -rf "$work" /tmp/skurra-swap-err "$0"
+""", encoding="utf-8")
             script.chmod(0o755)
             subprocess.Popen(["/bin/bash", str(script)], start_new_session=True)
 
@@ -1357,6 +1448,8 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply(bin_items())
         elif self.path == "/api/installing":
             self.reply(installing)
+        elif self.path == "/api/lastupdate":
+            self.reply(swap_report())
         elif self.path == "/api/permissions":
             self.reply({"folders": permissions(), "mac": not WINDOWS})
         elif self.path == "/api/update":

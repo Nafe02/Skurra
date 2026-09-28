@@ -224,6 +224,11 @@ h3.important { color: #b5643d; }
 .permbar .spacer { flex: 1; }
 .permbar button { font-size: 13px; padding: 8px 14px; }
 .update .who { flex: 1; }
+.upbar { display: none; height: 6px; border-radius: 99px; background: var(--rule);
+         overflow: hidden; margin-top: 10px; }
+.upbar.on { display: block; }
+.upbar i { display: block; height: 100%; width: 0; border-radius: 99px;
+           background: var(--patina); transition: width .3s ease; }
 .ver { color: var(--dim); font-size: 12px; margin-top: 8px; }
 .bin .who { flex: 1; }
 .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 99px;
@@ -252,7 +257,9 @@ h3.important { color: #b5643d; }
   </div>
 
   <div class="update" id="update">
-    <span class="who"><b>Skurra <span id="upver"></span> is ready</b><em id="upnotes"></em></span>
+    <span class="who"><b id="uptitle">Skurra <span id="upver"></span> is ready</b><em id="upnotes"></em>
+      <span class="upbar" id="upbar"><i></i></span>
+    </span>
     <button id="uplater">Later</button>
     <button class="go" id="upget">Update now</button>
   </div>
@@ -957,45 +964,82 @@ async function checkUpdate() {
 }
 
 // Skurra replaces itself: download, swap, restart. No browser, no dragging.
+function fallback(u, why) {
+  const get = $("#upget"), later = $("#uplater");
+  $("#upbar").classList.remove("on");
+  $("#upnotes").textContent = why;
+  get.textContent = "Try again";
+  get.disabled = false; later.disabled = false; later.style.display = "";
+  get.onclick = () => installUpdate(u);
+  $("#uplater").textContent = "Download page";
+  $("#uplater").onclick = () =>
+    fetch("/api/open", { method: "POST", body: JSON.stringify({ url: u.url }) });
+}
+
 async function installUpdate(u) {
-  const get = $("#upget"), later = $("#uplater"), notes = $("#upnotes");
-  get.disabled = true; later.disabled = true;
-  get.textContent = "Starting\u2026";
-  notes.textContent = "Downloading the new version. Skurra will restart on its own.";
+  const get = $("#upget"), later = $("#uplater"), bar = $("#upbar");
+  get.disabled = true; later.style.display = "none";
+  get.textContent = "Updating\u2026";
+  $("#uptitle").textContent = "Downloading Skurra " + u.latest;
+  $("#upnotes").textContent = "Skurra will restart by itself when it is done.";
+  bar.classList.add("on");
+  bar.firstElementChild.style.width = "0%";
+
   try {
     const res = await (await fetch("/api/install-update", { method: "POST", body: "{}" })).json();
-    if (!res.ok) {
-      notes.textContent = res.why + " You can also download it yourself.";
-      get.textContent = "Open the download page";
-      get.disabled = false; later.disabled = false;
-      get.onclick = () => fetch("/api/open", { method: "POST", body: JSON.stringify({ url: u.url }) });
-      return;
-    }
+    if (!res.ok) { fallback(u, res.why); return; }
   } catch (e) {
-    notes.textContent = "Could not start the update.";
-    get.textContent = "Update now"; get.disabled = false; later.disabled = false;
+    fallback(u, "Could not start the update.");
     return;
   }
 
+  const began = Date.now();
   const tick = setInterval(async () => {
     let p;
     try { p = await (await fetch("/api/installing")).json(); }
-    catch (e) { return; }                       // it is restarting: the server is going
-    if (p.stage === "downloading") get.textContent = `Downloading ${p.pct}%`;
-    if (p.stage === "installing") get.textContent = "Installing\u2026";
+    catch (e) { clearInterval(tick); return; }   // it is restarting: the server is going
+
+    if (p.stage === "downloading") {
+      bar.firstElementChild.style.width = (p.pct || 0) + "%";
+      const secs = (Date.now() - began) / 1000;
+      const rate = secs > 1 && p.got ? p.got / secs : 0;
+      const left = rate && p.total ? Math.round((p.total - p.got) / rate) : 0;
+      $("#upnotes").textContent = p.total
+        ? `${size(p.got / 1048576)} of ${size(p.total / 1048576)}`
+          + (left > 0 ? ` \u00b7 about ${left} second${left === 1 ? "" : "s"} left` : "")
+        : `${size(p.got / 1048576)} so far`;
+    }
+    if (p.stage === "installing") {
+      bar.firstElementChild.style.width = "100%";
+      $("#uptitle").textContent = "Installing update\u2026";
+      $("#upnotes").textContent = "Putting the new Skurra in place.";
+    }
     if (p.stage === "restarting") {
       clearInterval(tick);
-      get.textContent = "Restarting\u2026";
-      notes.textContent = "Skurra is closing and will open again in a moment.";
+      $("#uptitle").textContent = "Restarting\u2026";
+      $("#upnotes").textContent = "Skurra is closing and will open again in a moment.";
     }
     if (p.stage === "failed") {
       clearInterval(tick);
-      notes.textContent = "That did not work: " + p.error;
-      get.textContent = "Open the download page";
-      get.disabled = false; later.disabled = false;
-      get.onclick = () => fetch("/api/open", { method: "POST", body: JSON.stringify({ url: u.url }) });
+      fallback(u, "That did not work: " + p.error);
     }
   }, 600);
+}
+
+// If the last swap went wrong it said so on the way out. Say it out loud.
+async function lastUpdateReport() {
+  try {
+    const r = await (await fetch("/api/lastupdate")).json();
+    if (!r || r.ok !== false) return;
+    $("#uptitle").textContent = "The last update did not install";
+    $("#upnotes").textContent = (r.error || "Skurra could not replace itself.")
+      + " Your old version is still here and working.";
+    $("#update").classList.add("on");
+    $("#upget").textContent = "Try again";
+    $("#upget").onclick = () => checkUpdate().then(() => $("#upget").click());
+    $("#uplater").textContent = "Dismiss";
+    $("#uplater").onclick = () => $("#update").classList.remove("on");
+  } catch (e) {}
 }
 
 // ---- permissions, all in one place ----
@@ -1047,7 +1091,10 @@ $("#permsettings").onclick = () => {
 
 $("#permhide").onclick = () => $("#perms").classList.remove("on");
 
-checkUpdate().then(loadBin).then(loadPerms);      // know which OS we are on before wording the bin
+// Each of these stands on its own: one failing must not silence the others.
+checkUpdate().then(loadBin).catch(() => {});
+loadPerms().catch(() => {});
+lastUpdateReport().catch(() => {});      // know which OS we are on before wording the bin
 loadLog();
 </script>
 </body>
