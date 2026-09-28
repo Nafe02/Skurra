@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "All the folder permissions in one place, and a folder you allow is no longer skipped for ever."
+  "notes": "Updates install themselves with a progress bar, and a failed update now says what went wrong."
 }
