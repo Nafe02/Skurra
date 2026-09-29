@@ -1,5 +1,5 @@
 {
-  "version": "1.10.0",
+  "version": "1.11.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "After updating, Skurra now reopens in under a second instead of seeming to vanish."
+  "notes": "Skurra asks which folders it may look in before your Mac does, instead of surprising you with dialogs at launch."
 }
