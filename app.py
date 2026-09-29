@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.12.0"
+VERSION = "1.13.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -168,9 +168,11 @@ PERMS_FILE = DATA / "permissions.json"
 def load_perms():
     try:
         got = json.loads(PERMS_FILE.read_text())
-        return {"asked": bool(got.get("asked")), "folders": dict(got.get("folders") or {})}
+        return {"asked": bool(got.get("asked")),
+                "version": str(got.get("version") or ""),
+                "folders": dict(got.get("folders") or {})}
     except Exception:
-        return {"asked": False, "folders": {}}
+        return {"asked": False, "version": "", "folders": {}}
 
 
 def save_perms(state):
@@ -1260,7 +1262,11 @@ def permissions():
             continue
         out.append({"name": r.name, "path": str(r),
                     "state": state["folders"].get(str(r), "unknown")})
-    return {"folders": out, "asked": state["asked"], "mac": not WINDOWS}
+    # Skurra is ad-hoc signed, so every build is a different app to macOS and
+    # an update wipes the folder grants. A decision made by an older version
+    # no longer describes reality, so say so and let the page ask again.
+    return {"folders": out, "asked": state["asked"], "mac": not WINDOWS,
+            "stale": bool(state["asked"] and state["version"] != VERSION)}
 
 
 def ask_permission(path):
@@ -1278,6 +1284,7 @@ def ask_permission(path):
     state = load_perms()
     state["folders"][str(path)] = "granted" if got else "declined"
     state["asked"] = True
+    state["version"] = VERSION
     save_perms(state)
     return got
 
@@ -1684,6 +1691,7 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path == "/api/permissions-done":
             state = load_perms()
             state["asked"] = True
+            state["version"] = VERSION
             save_perms(state)
             self.reply({"ok": True})
             return

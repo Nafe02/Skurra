@@ -1,5 +1,5 @@
 {
-  "version": "1.12.0",
+  "version": "1.13.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Allow every folder in one go from Settings, instead of answering a system dialog for each."
+  "notes": "Updating resets folder permissions on a Mac, so Skurra now asks again afterwards instead of going quiet."
 }
