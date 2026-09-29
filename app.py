@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.9.0"
+VERSION = "1.10.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1503,35 +1503,62 @@ Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
             if not (staged / "Contents/MacOS/Skurra").exists():
                 raise OSError("the downloaded app looks incomplete")
 
+            # Copy it into place NOW, while the window is still up and the
+            # banner still says something. Once Skurra quits there is nothing
+            # on screen, so every second of that gap looks like a crash.
+            beside = Path(str(target) + ".new")
+            subprocess.run(["rm", "-rf", str(beside)], timeout=60)
+            subprocess.run(["cp", "-R", str(staged), str(beside)], check=True, timeout=300)
+
             script = Path(tempfile.gettempdir()) / f"skurra-swap-{os.getpid()}.sh"
-            # Copy alongside first and swap only once that worked, so a failure
-            # can never leave the user with no app. The two possible results are
-            # built in Python and written out whole: the shell is not asked to
-            # assemble any JSON, which is what broke this script before.
+            # All that is left after Skurra quits is two renames, which are
+            # instant. Then tell Launch Services the bundle changed before
+            # asking it to open, or it stalls for half a minute working that
+            # out for itself, and confirm the app really did come back.
             script.write_text(f"""#!/bin/bash
 target={sh_quote(str(target))}
-staged={sh_quote(str(staged))}
+beside={sh_quote(str(beside))}
 work={sh_quote(str(work))}
 result={sh_quote(result)}
+lsreg=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 for i in $(seq 1 120); do kill -0 {os.getpid()} 2>/dev/null || break; sleep 0.5; done
 mkdir -p "$(dirname "$result")"
 ok=no
-if cp -R "$staged" "$target.new"; then
+rm -rf "$target.old"
+if mv "$target" "$target.old" && mv "$beside" "$target"; then
+  ok=yes
   rm -rf "$target.old"
-  if mv "$target" "$target.old" && mv "$target.new" "$target"; then
-    ok=yes
-    rm -rf "$target.old"
-  else
-    if [ -d "$target.old" ] && [ ! -e "$target" ]; then mv "$target.old" "$target"; fi
-    rm -rf "$target.new"
-  fi
+else
+  if [ -d "$target.old" ] && [ ! -e "$target" ]; then mv "$target.old" "$target"; fi
+  rm -rf "$beside"
 fi
+back=no
 if [ "$ok" = yes ]; then
+  # Start the binary straight off. Going through "open" on a bundle that
+  # has just been replaced is unreliable: it returns at once and then may
+  # never launch anything, which is what left the window missing.
+  "$lsreg" -f "$target" 2>/dev/null &
+  "$target/Contents/MacOS/Skurra" >/dev/null 2>&1 &
+  for i in $(seq 1 30); do
+    pgrep -f "$target/Contents/MacOS/" >/dev/null 2>&1 && back=yes && break
+    sleep 0.5
+  done
+  if [ "$back" = no ]; then
+    open -n "$target" 2>/dev/null          # second chance, the long way round
+    for i in $(seq 1 30); do
+      pgrep -f "$target/Contents/MacOS/" >/dev/null 2>&1 && back=yes && break
+      sleep 0.5
+    done
+  fi
+  osascript -e 'tell application "Skurra" to activate' 2>/dev/null
+fi
+if [ "$ok" = yes ] && [ "$back" = yes ]; then
   printf '%s' {sh_quote(note_json(True, ""))} > "$result"
+elif [ "$ok" = yes ]; then
+  printf '%s' {sh_quote(note_json(False, "The new version was installed but did not reopen on its own"))} > "$result"
 else
   printf '%s' {sh_quote(note_json(False, "Skurra could not put the new version in place"))} > "$result"
 fi
-open "$target"
 rm -rf "$work" "$0"
 """, encoding="utf-8")
             script.chmod(0o755)

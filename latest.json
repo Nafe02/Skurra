@@ -1,5 +1,5 @@
 {
-  "version": "1.9.0",
+  "version": "1.10.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Fixes updating on Mac: the app was quitting into a helper that could not run, so it never came back."
+  "notes": "After updating, Skurra now reopens in under a second instead of seeming to vanish."
 }
