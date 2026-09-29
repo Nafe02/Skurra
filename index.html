@@ -221,6 +221,8 @@ h3.important { color: #b5643d; }
 .sheet b { display: block; font-size: 18px; margin-bottom: 7px; }
 .sheet p { margin: 0; color: var(--dim); font-size: 14px; }
 .sheet .tiny { font-size: 13px; margin-top: 12px; min-height: 18px; color: var(--patina); }
+.sheet .tiny2 { font-size: 12px; margin-top: 4px; color: var(--dim); }
+.sheetbar { flex-wrap: wrap; }
 .permrows { display: flex; flex-wrap: wrap; gap: 7px; margin: 16px 0 0; }
 .permrow {
   display: flex; align-items: center; gap: 8px; padding: 7px 13px; font-size: 13px;
@@ -261,8 +263,10 @@ h3.important { color: #b5643d; }
          and your Mac will ask you to confirm each one.</p>
       <div class="permrows" id="permrows"></div>
       <p class="tiny" id="permnow"></p>
+      <p class="tiny2">Allowing in Settings covers every folder at once, with no prompts.</p>
       <div class="sheetbar">
         <button class="go" id="permall" type="button">Allow selected</button>
+        <button id="permfda" type="button">Allow everything in Settings</button>
         <button id="permskip" type="button">Continue without</button>
       </div>
     </div>
@@ -1090,6 +1094,14 @@ function closeSheet() {
 }
 
 $("#permskip").onclick = closeSheet;
+
+// The per-folder route means one macOS dialog each, and macOS owns those.
+// Full Disk Access is the way to answer once and be done.
+$("#permfda").onclick = () => {
+  fetch("/api/open-privacy", { method: "POST", body: "{}" }).catch(() => {});
+  $("#permnow").textContent =
+    "Switch Skurra on in the list that just opened, then come back and press Allow selected.";
+};
 
 $("#permall").onclick = async () => {
   const boxes = [...document.querySelectorAll(".permrow input")];

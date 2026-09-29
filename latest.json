@@ -1,5 +1,5 @@
 {
-  "version": "1.11.0",
+  "version": "1.12.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Skurra asks which folders it may look in before your Mac does, instead of surprising you with dialogs at launch."
+  "notes": "Allow every folder in one go from Settings, instead of answering a system dialog for each."
 }
