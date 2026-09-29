@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.8.0"
+VERSION = "1.9.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1353,6 +1353,37 @@ def fetch(url, into, on_bit, tries=3):
     return into
 
 
+def script_parses(path):
+    """Ask the shell itself whether this script is even valid.
+
+    A helper with a syntax error dies the instant it starts, and by then
+    Skurra has already quit: the app vanishes and nothing brings it back.
+    Better to find out while we are still running.
+    """
+    try:
+        if WINDOWS:
+            check = ("$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile("
+                     f"'{path}',[ref]$null,[ref]$e); if ($e.Count) {{ exit 1 }}")
+            r = subprocess.run(["powershell", "-NoProfile", "-Command", check],
+                               capture_output=True, timeout=30)
+        else:
+            r = subprocess.run(["bash", "-n", str(path)], capture_output=True, timeout=30)
+        return r.returncode == 0, (r.stderr or b"").decode()[:200]
+    except (OSError, subprocess.TimeoutExpired):
+        return True, ""            # no checker available: do not block the update
+
+
+def sweep_leftovers():
+    """Clear work folders and helpers left by updates that never finished."""
+    tmp = Path(tempfile.gettempdir())
+    for pattern in ("skurra-update-*", "skurra-swap-*"):
+        for old in tmp.glob(pattern):
+            try:
+                shutil.rmtree(old) if old.is_dir() else old.unlink()
+            except OSError:
+                pass
+
+
 def install_update():
     """Download the new Skurra, then hand over to a script that swaps it in.
 
@@ -1366,9 +1397,13 @@ def install_update():
     def bit(pct, got, total, attempt=1):
         installing.update(pct=pct, got=got, total=total, attempt=attempt)
 
+    def note_json(ok, why):
+        # Built here, where quoting is sane, and handed to the script whole.
+        return json.dumps({"ok": ok, "error": why, "version": want})
+
     try:
-        work = Path(tempfile.mkdtemp(prefix="skurra-update-"))
         want = check_update().get("latest") or VERSION
+        work = Path(tempfile.mkdtemp(prefix="skurra-update-"))
         url = DOWNLOAD["windows" if WINDOWS else "mac"].format(tag=f"v{want}")
         target = app_path()
         result = str(RESULT_FILE)
@@ -1451,9 +1486,9 @@ if (-not $ok) {{
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
 """, encoding="utf-8")
-            subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                              "-WindowStyle", "Hidden", "-File", str(script)],
-                             creationflags=0x08000000)      # no window, but a console exists
+            launch = (["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                       "-WindowStyle", "Hidden", "-File", str(script)],
+                      {"creationflags": 0x08000000})   # no window, but a console exists
         else:
             dmg = fetch(url, work / "Skurra.dmg", bit)
             installing.update(stage="installing", pct=100)
@@ -1470,35 +1505,50 @@ Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
 
             script = Path(tempfile.gettempdir()) / f"skurra-swap-{os.getpid()}.sh"
             # Copy alongside first and swap only once that worked, so a failure
-            # can never leave the user with no app at all.
+            # can never leave the user with no app. The two possible results are
+            # built in Python and written out whole: the shell is not asked to
+            # assemble any JSON, which is what broke this script before.
             script.write_text(f"""#!/bin/bash
 target={sh_quote(str(target))}
 staged={sh_quote(str(staged))}
 work={sh_quote(str(work))}
 result={sh_quote(result)}
-ok=false; why=""
 for i in $(seq 1 120); do kill -0 {os.getpid()} 2>/dev/null || break; sleep 0.5; done
-if cp -R "$staged" "$target.new" 2>/tmp/skurra-swap-err; then
+mkdir -p "$(dirname "$result")"
+ok=no
+if cp -R "$staged" "$target.new"; then
   rm -rf "$target.old"
-  if mv "$target" "$target.old" 2>>/tmp/skurra-swap-err &&
-     mv "$target.new" "$target" 2>>/tmp/skurra-swap-err; then
-    ok=true; rm -rf "$target.old"
+  if mv "$target" "$target.old" && mv "$target.new" "$target"; then
+    ok=yes
+    rm -rf "$target.old"
   else
-    why="could not put the new app in place"
-    [ -d "$target.old" ] && [ ! -e "$target" ] && mv "$target.old" "$target"
+    if [ -d "$target.old" ] && [ ! -e "$target" ]; then mv "$target.old" "$target"; fi
     rm -rf "$target.new"
   fi
-else
-  why="could not copy the new app"
 fi
-[ "$ok" = false ] && why="$why: $(tail -1 /tmp/skurra-swap-err 2>/dev/null)"
-mkdir -p "$(dirname "$result")"
-printf '{{"ok": %s, "error": "%s", "version": "%s"}}\n' "$ok" "${{why//\"/}}" {sh_quote(want)} > "$result"
+if [ "$ok" = yes ]; then
+  printf '%s' {sh_quote(note_json(True, ""))} > "$result"
+else
+  printf '%s' {sh_quote(note_json(False, "Skurra could not put the new version in place"))} > "$result"
+fi
 open "$target"
-rm -rf "$work" /tmp/skurra-swap-err "$0"
+rm -rf "$work" "$0"
 """, encoding="utf-8")
             script.chmod(0o755)
-            subprocess.Popen(["/bin/bash", str(script)], start_new_session=True)
+            launch = (["/bin/bash", str(script)], {"start_new_session": True})
+
+        # Two things have to be true before Skurra is allowed to quit: the
+        # helper must be a script the shell will accept, and it must actually
+        # be running. Quitting into a helper that died is how the app used to
+        # disappear and never come back.
+        fine, complaint = script_parses(script)
+        if not fine:
+            raise OSError(f"Skurra wrote an update helper it cannot run: {complaint.strip()}")
+
+        helper = subprocess.Popen(launch[0], **launch[1])
+        time.sleep(1.0)
+        if helper.poll() is not None:
+            raise OSError("the update helper stopped before it could do anything")
 
         installing.update(stage="restarting")
         threading.Timer(1.0, lambda: os._exit(0)).start()
@@ -1700,6 +1750,7 @@ def stop_older_skurra():
 
 
 stop_older_skurra()
+sweep_leftovers()      # clear anything a failed update left behind
 server = ThreadingHTTPServer(("127.0.0.1", PORT), partial(Handler, directory=str(HERE)))
 threading.Thread(target=server.serve_forever, daemon=True).start()
 

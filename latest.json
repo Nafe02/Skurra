@@ -1,5 +1,5 @@
 {
-  "version": "1.8.0",
+  "version": "1.9.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "A download that stalls now picks up where it left off instead of failing the whole update."
+  "notes": "Fixes updating on Mac: the app was quitting into a helper that could not run, so it never came back."
 }
