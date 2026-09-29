@@ -227,10 +227,15 @@ h3.important { color: #b5643d; }
 .steps2 b { display: inline; color: var(--ink); font-weight: 600; font-size: inherit; margin: 0; }
 .sheetbar { flex-wrap: wrap; }
 .permrows { display: flex; flex-wrap: wrap; gap: 7px; margin: 16px 0 0; }
+.permrows { display: block; }
 .permrow {
-  display: flex; align-items: center; gap: 8px; padding: 7px 13px; font-size: 13px;
-  border-radius: 99px; background: var(--paper); border: 1px solid var(--rule); cursor: pointer;
+  display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; align-items: center;
+  padding: 9px 12px; margin-bottom: 5px; font-size: 13px;
+  border-radius: 10px; background: var(--paper); border: 1px solid var(--rule); cursor: pointer;
 }
+.permrow .pname { font-weight: 600; }
+.permrow .pwhy { grid-column: 2; color: var(--dim); font-size: 12px; line-height: 1.4; }
+.permrow:hover { border-color: var(--patina); }
 .permrow input { width: 15px; height: 15px; accent-color: var(--patina); cursor: pointer; }
 .permrow.granted { border-color: var(--patina); color: var(--patina); }
 .permrow.declined { opacity: .55; }
@@ -272,12 +277,11 @@ h3.important { color: #b5643d; }
         <li>Tick <b>Skurra</b> in the list on the right</li>
         <li>Come back here and press <b>Allow selected</b></li>
       </ol>
-      <p class="tiny2">Allowing in Settings covers every folder at once, with no prompts.</p>
       <div class="sheetbar">
         <button class="go" id="permall" type="button">Allow selected</button>
-        <button id="permfda" type="button">Allow everything in Settings</button>
         <button id="permskip" type="button">Continue without</button>
       </div>
+      <p class="tiny2"><button class="permlink" id="permfda" type="button">Or allow them all at once in Settings</button></p>
     </div>
   </div>
 
@@ -1079,10 +1083,14 @@ async function lastUpdateReport() {
 let perms = [];
 
 function drawPerms() {
+  // Never disable the box. It used to be disabled for anything remembered as
+  // granted, which after an update was every folder, so nothing could be
+  // ticked or unticked and Allow had nothing left to ask for.
   $("#permrows").innerHTML = perms.map((f, n) => `
     <label class="permrow ${f.state}" data-n="${n}">
-      <input type="checkbox" ${f.state === "granted" ? "checked disabled" : "checked"}>
-      ${f.name}${f.state === "granted" ? " \u2713" : ""}
+      <input type="checkbox" checked>
+      <span class="pname">${f.name}${f.state === "granted" ? " \u2713" : ""}</span>
+      <span class="pwhy">${f.why || ""}</span>
     </label>`).join("");
 }
 
@@ -1090,7 +1098,9 @@ async function loadPerms(force) {
   try {
     const d = await (await fetch("/api/permissions")).json();
     if (!d.mac) return;                       // Windows does not gate folders this way
-    perms = d.folders;
+    // After an update macOS has genuinely forgotten, so what we remember is
+    // no longer true. Showing it as granted would claim access we do not have.
+    perms = d.stale ? d.folders.map(f => ({ ...f, state: "unknown" })) : d.folders;
     drawPerms();
     // Lead with it when nothing has been decided, and again after an update:
     // the new build is a different app to macOS, so the grants are gone and
@@ -1118,7 +1128,7 @@ $("#permfda").onclick = () => {
 
 $("#permall").onclick = async () => {
   const boxes = [...document.querySelectorAll(".permrow input")];
-  const wanted = perms.filter((f, n) => boxes[n] && boxes[n].checked && f.state !== "granted");
+  const wanted = perms.filter((f, n) => boxes[n] && boxes[n].checked);
   if (!wanted.length) { closeSheet(); return; }
 
   $("#permall").disabled = true;

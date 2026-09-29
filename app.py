@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.13.0"
+VERSION = "1.14.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -103,12 +103,32 @@ FOLDERS = APPDATA_DIRS + [CACHES_DIR]
 # ---------------------------------------------------------------- disk view
 
 # The places worth looking through. Everything here belongs to the user.
+def allowed_folder(path):
+    """Did the person allow this one? Unknown counts as yes until they decide."""
+    state = load_perms()
+    if not state["asked"] or state["version"] != VERSION:
+        return True                       # never asked, or the answer is stale
+    return state["folders"].get(str(path), "unknown") != "declined"
+
+
 def disk_roots():
     names = ["Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music"]
     if WINDOWS:
         names = ["Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music"]
     out = [HOME / n for n in names if (HOME / n).is_dir()]
     return [HOME] + out
+
+# Why Skurra asks for each of these. True of what it actually does: Downloads
+# feeds the Installation files list, the rest feed the Disk space view.
+WHY_FOLDER = {
+    "Downloads": "Installers you have already used collect here. Skurra lists them so you can bin them.",
+    "Desktop": "Measures what has piled up on your Desktop and been forgotten.",
+    "Documents": "Measures large folders. Files are counted, never opened.",
+    "Pictures": "Measures screenshots and exports. Your Photos library is always skipped.",
+    "Movies": "Finds big video files, usually the largest thing on a Mac.",
+    "Music": "Measures downloaded audio and leftovers from music apps.",
+    "Videos": "Finds big video files, usually the largest thing on a PC.",
+}
 
 KINDS = {
     "video":    {".mp4", ".mov", ".avi", ".mkv", ".m4v", ".wmv", ".webm", ".mpg", ".mpeg"},
@@ -569,7 +589,7 @@ def scan():
 
     # installers sitting in Downloads long after they were used
     downloads = HOME / "Downloads"
-    if downloads.exists():
+    if downloads.exists() and allowed_folder(downloads):
         try:
             entries = list(downloads.iterdir())
         except OSError:
@@ -1261,6 +1281,7 @@ def permissions():
         if r == HOME:
             continue
         out.append({"name": r.name, "path": str(r),
+                    "why": WHY_FOLDER.get(r.name, "Measures what is in here."),
                     "state": state["folders"].get(str(r), "unknown")})
     # Skurra is ad-hoc signed, so every build is a different app to macOS and
     # an update wipes the folder grants. A decision made by an older version
@@ -1689,7 +1710,15 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         if self.path == "/api/permissions-done":
+            # Closing without granting means exactly that: anything not
+            # allowed is written down as declined, so no later scan wanders
+            # into it and lets macOS ask on Skurra's behalf.
             state = load_perms()
+            for r in disk_roots():
+                if r == HOME:
+                    continue
+                if state["folders"].get(str(r)) != "granted":
+                    state["folders"][str(r)] = "declined"
             state["asked"] = True
             state["version"] = VERSION
             save_perms(state)
