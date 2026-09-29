@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.10.0"
+VERSION = "1.11.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -161,6 +161,23 @@ def is_ours(path):
     if any(low == o or low.startswith(o + os.sep) for o in OWN):
         return True
     return Path(path).name.lower().startswith("_mei")
+
+
+PERMS_FILE = DATA / "permissions.json"
+
+def load_perms():
+    try:
+        got = json.loads(PERMS_FILE.read_text())
+        return {"asked": bool(got.get("asked")), "folders": dict(got.get("folders") or {})}
+    except Exception:
+        return {"asked": False, "folders": {}}
+
+
+def save_perms(state):
+    try:
+        PERMS_FILE.write_text(json.dumps(state, indent=1))
+    except OSError:
+        pass
 
 
 GUARDED_FILE = DATA / "guarded.json"
@@ -1229,13 +1246,21 @@ def can_read(path, seconds=2):
 
 
 def permissions():
-    """Every folder Skurra wants, and whether macOS is letting it in."""
+    """Every folder Skurra would like, and what was decided about each.
+
+    This deliberately touches nothing. Reading a guarded folder is exactly
+    what makes macOS put its dialog up, so asking "may we?" used to demand
+    an answer before the person had seen anything. We report what we were
+    told last time and leave the asking to them.
+    """
+    state = load_perms()
     out = []
     for r in disk_roots():
         if r == HOME:
             continue
-        out.append({"name": r.name, "path": str(r), "ok": can_read(r)})
-    return out
+        out.append({"name": r.name, "path": str(r),
+                    "state": state["folders"].get(str(r), "unknown")})
+    return {"folders": out, "asked": state["asked"], "mac": not WINDOWS}
 
 
 def ask_permission(path):
@@ -1250,6 +1275,10 @@ def ask_permission(path):
         for gone in [g for g in known if g == str(path) or g.startswith(str(path) + os.sep)]:
             known.discard(gone)
         save_guarded(known)
+    state = load_perms()
+    state["folders"][str(path)] = "granted" if got else "declined"
+    state["asked"] = True
+    save_perms(state)
     return got
 
 
@@ -1614,7 +1643,7 @@ class Handler(SimpleHTTPRequestHandler):
         elif self.path == "/api/lastupdate":
             self.reply(swap_report())
         elif self.path == "/api/permissions":
-            self.reply({"folders": permissions(), "mac": not WINDOWS})
+            self.reply(permissions())
         elif self.path == "/api/update":
             self.reply(check_update())
         elif self.path == "/api/roots":
@@ -1650,6 +1679,13 @@ class Handler(SimpleHTTPRequestHandler):
                 self.reply({"ok": False})
                 return
             self.reply({"ok": ask_permission(want)})
+            return
+
+        if self.path == "/api/permissions-done":
+            state = load_perms()
+            state["asked"] = True
+            save_perms(state)
+            self.reply({"ok": True})
             return
 
         if self.path == "/api/open-privacy":

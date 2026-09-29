@@ -207,22 +207,34 @@ h3.important { color: #b5643d; }
           padding: 14px 16px; border-radius: var(--round);
           background: var(--card); border: 1px solid var(--patina); }
 .update.on { display: flex; }
-.perms { display: none; margin: 0 0 var(--step); padding: 16px;
-         background: var(--card); border: 1px solid var(--rule); border-radius: var(--round); }
-.perms.on { display: block; }
-.permhead b { display: block; font-size: 16px; margin-bottom: 3px; }
-.permhead span { color: var(--dim); font-size: 13px; }
-.permrows { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 0; }
-.permrow { display: flex; align-items: center; gap: 7px; padding: 6px 12px; font-size: 13px;
-           border-radius: 99px; background: var(--paper); border: 1px solid var(--rule); }
-.permrow i { width: 8px; height: 8px; border-radius: 50%; background: var(--rule); flex: none; }
-.permrow.ok i { background: var(--patina); }
-.permrow.no i { background: #b5643d; }
-.permrow.asking i { background: var(--amber); animation: pulse 1s ease-in-out infinite; }
-@keyframes pulse { 50% { opacity: .35; } }
-.permbar { display: flex; align-items: center; gap: 9px; margin-top: 14px; flex-wrap: wrap; }
-.permbar .spacer { flex: 1; }
-.permbar button { font-size: 13px; padding: 8px 14px; }
+.sheetback {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+  padding: 24px; background: rgba(0,0,0,.45);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.sheetback[hidden] { display: none; }
+.sheet {
+  width: min(460px, 100%); background: var(--card); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: var(--round);
+  padding: 22px 22px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.45);
+}
+.sheet b { display: block; font-size: 18px; margin-bottom: 7px; }
+.sheet p { margin: 0; color: var(--dim); font-size: 14px; }
+.sheet .tiny { font-size: 13px; margin-top: 12px; min-height: 18px; color: var(--patina); }
+.permrows { display: flex; flex-wrap: wrap; gap: 7px; margin: 16px 0 0; }
+.permrow {
+  display: flex; align-items: center; gap: 8px; padding: 7px 13px; font-size: 13px;
+  border-radius: 99px; background: var(--paper); border: 1px solid var(--rule); cursor: pointer;
+}
+.permrow input { width: 15px; height: 15px; accent-color: var(--patina); cursor: pointer; }
+.permrow.granted { border-color: var(--patina); color: var(--patina); }
+.permrow.declined { opacity: .55; }
+.permrow.asking { border-color: var(--amber); color: var(--amber); }
+.sheetbar { display: flex; gap: 9px; margin-top: 18px; }
+.sheetbar button { font-size: 14px; padding: 10px 16px; }
+.permlink { background: none; border: none; color: var(--dim); font: inherit;
+            font-size: 13px; cursor: pointer; padding: 0; text-decoration: underline; }
+.permlink:hover { color: var(--ink); }
 .update .who { flex: 1; }
 .upbar { display: none; height: 6px; border-radius: 99px; background: var(--rule);
          overflow: hidden; margin-top: 10px; }
@@ -242,17 +254,17 @@ h3.important { color: #b5643d; }
   <h1>Skurra: AI Storage Cleaner</h1>
   <p class="warn" id="warn"></p>
 
-  <div class="perms" id="perms">
-    <div class="permhead">
-      <b>Let Skurra look in your folders</b>
-      <span>macOS asks once per folder. Allow all walks you through them, then it stops asking.</span>
-    </div>
-    <div class="permrows" id="permrows"></div>
-    <div class="permbar">
-      <button class="go" id="permall" type="button">Allow all</button>
-      <button id="permsettings" type="button">Do it in System Settings</button>
-      <span class="spacer"></span>
-      <button id="permhide" type="button">Not now</button>
+  <div class="sheetback" id="sheetback" hidden>
+    <div class="sheet" role="dialog" aria-labelledby="sheettitle">
+      <b id="sheettitle">Let Skurra see your folders</b>
+      <p>Skurra only looks where you allow it to. Tick the folders it may check,
+         and your Mac will ask you to confirm each one.</p>
+      <div class="permrows" id="permrows"></div>
+      <p class="tiny" id="permnow"></p>
+      <div class="sheetbar">
+        <button class="go" id="permall" type="button">Allow selected</button>
+        <button id="permskip" type="button">Continue without</button>
+      </div>
     </div>
   </div>
 
@@ -359,7 +371,8 @@ h3.important { color: #b5643d; }
 
   <p class="skip" id="skip"></p>
   <p class="foot" id="foot"></p>
-  <p class="ver" id="ver"></p>
+  <p class="ver"><span id="ver"></span> &middot;
+     <button class="permlink" id="permlink" type="button">Permissions</button></p>
 </main>
 
 <script>
@@ -1049,58 +1062,67 @@ async function lastUpdateReport() {
   } catch (e) {}
 }
 
-// ---- permissions, all in one place ----
+// ---- permissions: we ask first, macOS asks second ----
 let perms = [];
 
 function drawPerms() {
-  $("#permrows").innerHTML = perms.map(f =>
-    `<span class="permrow ${f.ok ? "ok" : "no"}" data-path="${f.path}"><i></i>${f.name}</span>`).join("");
-  const blocked = perms.filter(f => !f.ok);
-  $("#perms").classList.toggle("on", blocked.length > 0);
-  $("#permall").textContent = blocked.length
-    ? `Allow all (${blocked.length})` : "Allow all";
+  $("#permrows").innerHTML = perms.map((f, n) => `
+    <label class="permrow ${f.state}" data-n="${n}">
+      <input type="checkbox" ${f.state === "granted" ? "checked disabled" : "checked"}>
+      ${f.name}${f.state === "granted" ? " \u2713" : ""}
+    </label>`).join("");
 }
 
-async function loadPerms() {
+async function loadPerms(force) {
   try {
     const d = await (await fetch("/api/permissions")).json();
     if (!d.mac) return;                       // Windows does not gate folders this way
     perms = d.folders;
     drawPerms();
+    // Only lead with it when they have never been asked, or they asked for it.
+    if (force || !d.asked) $("#sheetback").hidden = false;
   } catch (e) {}
 }
 
+function closeSheet() {
+  $("#sheetback").hidden = true;
+  fetch("/api/permissions-done", { method: "POST", body: "{}" }).catch(() => {});
+}
+
+$("#permskip").onclick = closeSheet;
+
 $("#permall").onclick = async () => {
-  const todo = perms.filter(f => !f.ok);
+  const boxes = [...document.querySelectorAll(".permrow input")];
+  const wanted = perms.filter((f, n) => boxes[n] && boxes[n].checked && f.state !== "granted");
+  if (!wanted.length) { closeSheet(); return; }
+
   $("#permall").disabled = true;
-  for (const f of todo) {
-    const chip = $(`.permrow[data-path="${f.path}"]`);
-    if (chip) { chip.className = "permrow asking"; }
-    $("#permall").textContent = `Asking for ${f.name}\u2026`;
+  $("#permskip").disabled = true;
+  for (const f of wanted) {
+    const n = perms.indexOf(f);
+    const chip = $(`.permrow[data-n="${n}"]`);
+    if (chip) chip.className = "permrow asking";
+    $("#permnow").textContent = `Your Mac is asking about ${f.name}\u2026`;
     try {
       const r = await (await fetch("/api/permission-ask",
         { method: "POST", body: JSON.stringify({ path: f.path }) })).json();
-      f.ok = r.ok;
-    } catch (e) {}
+      f.state = r.ok ? "granted" : "declined";
+    } catch (e) { f.state = "declined"; }
     drawPerms();
   }
   $("#permall").disabled = false;
-  const left = perms.filter(f => !f.ok);
-  note(left.length
-    ? `Still waiting on ${left.map(f => f.name).join(", ")}. System Settings can grant them all at once.`
-    : "Skurra can see all your folders now.");
+  $("#permskip").disabled = false;
+  const yes = perms.filter(f => f.state === "granted").length;
+  $("#permnow").textContent = yes
+    ? `Skurra can see ${yes} folder${yes === 1 ? "" : "s"}. You can close this.`
+    : "Nothing was allowed. Skurra will still work, it just sees less.";
+  $("#permskip").textContent = "Done";
 };
 
-$("#permsettings").onclick = () => {
-  fetch("/api/open-privacy", { method: "POST", body: "{}" });
-  note("Turn Skurra on under Full Disk Access, then come back and press Scan.");
-};
+$("#permlink").onclick = () => loadPerms(true);
 
-$("#permhide").onclick = () => $("#perms").classList.remove("on");
-
-// Each of these stands on its own: one failing must not silence the others.
 checkUpdate().then(loadBin).catch(() => {});
-loadPerms().catch(() => {});
+loadPerms(false).catch(() => {});
 lastUpdateReport().catch(() => {});      // know which OS we are on before wording the bin
 loadLog();
 </script>
