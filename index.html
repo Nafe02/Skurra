@@ -222,6 +222,9 @@ h3.important { color: #b5643d; }
 .sheet p { margin: 0; color: var(--dim); font-size: 14px; }
 .sheet .tiny { font-size: 13px; margin-top: 12px; min-height: 18px; color: var(--patina); }
 .sheet .tiny2 { font-size: 12px; margin-top: 4px; color: var(--dim); }
+.steps2 { margin: 10px 0 0; padding-left: 20px; font-size: 13px; color: var(--dim); }
+.steps2 li { margin-bottom: 4px; }
+.steps2 b { display: inline; color: var(--ink); font-weight: 600; font-size: inherit; margin: 0; }
 .sheetbar { flex-wrap: wrap; }
 .permrows { display: flex; flex-wrap: wrap; gap: 7px; margin: 16px 0 0; }
 .permrow {
@@ -263,6 +266,12 @@ h3.important { color: #b5643d; }
          and your Mac will ask you to confirm each one.</p>
       <div class="permrows" id="permrows"></div>
       <p class="tiny" id="permnow"></p>
+      <ol class="steps2" id="permsteps" hidden>
+        <li>Pick <b>Full Disk Access</b> in the list on the left</li>
+        <li>Click the <b>padlock</b> at the bottom and enter your Mac password</li>
+        <li>Tick <b>Skurra</b> in the list on the right</li>
+        <li>Come back here and press <b>Allow selected</b></li>
+      </ol>
       <p class="tiny2">Allowing in Settings covers every folder at once, with no prompts.</p>
       <div class="sheetbar">
         <button class="go" id="permall" type="button">Allow selected</button>
@@ -1083,8 +1092,12 @@ async function loadPerms(force) {
     if (!d.mac) return;                       // Windows does not gate folders this way
     perms = d.folders;
     drawPerms();
-    // Only lead with it when they have never been asked, or they asked for it.
-    if (force || !d.asked) $("#sheetback").hidden = false;
+    // Lead with it when nothing has been decided, and again after an update:
+    // the new build is a different app to macOS, so the grants are gone and
+    // staying quiet would leave Skurra unable to see anything, silently.
+    if (force || !d.asked || d.stale) $("#sheetback").hidden = false;
+    if (d.stale && !force) $("#permnow").textContent =
+      "Updating resets these, so your Mac needs to be asked again.";
   } catch (e) {}
 }
 
@@ -1099,8 +1112,8 @@ $("#permskip").onclick = closeSheet;
 // Full Disk Access is the way to answer once and be done.
 $("#permfda").onclick = () => {
   fetch("/api/open-privacy", { method: "POST", body: "{}" }).catch(() => {});
-  $("#permnow").textContent =
-    "Switch Skurra on in the list that just opened, then come back and press Allow selected.";
+  $("#permsteps").hidden = false;
+  $("#permnow").textContent = "";
 };
 
 $("#permall").onclick = async () => {
