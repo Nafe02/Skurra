@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.14.0"
+VERSION = "1.15.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -700,17 +700,21 @@ def scan():
             continue
 
         # how safe is it to remove this?
-        level, why, protected = "safe", "", False
+        level, why = "safe", ""
         if kind == "idle":
-            if item.name.lower() in KEEP_APPDATA:
-                level, why, protected = "important", "holds work that cannot be rebuilt", True
+            owned = has_an_owner(item.name, ids, names)
+            if not owned:
+                # The app is gone, so whatever this holds is nobody's work now,
+                # however precious the name looked. Uninstalling Cursor should
+                # not leave a gigabyte marked "cannot be rebuilt" for ever.
+                level, why = "safe", "no installed app owns this any more"
+            elif item.name.lower() in KEEP_APPDATA:
+                level, why = "important", "holds work that cannot be rebuilt"
             elif days < MIN_DAYS:
                 ago_txt = "today" if days == 0 else "yesterday" if days == 1 else f"{days} days ago"
                 level, why = "important", f"an app used this {ago_txt}"
-            elif has_an_owner(item.name, ids, names):
-                level, why = "less", f"app still installed, data untouched for {days} days"
             else:
-                level, why = "safe", "no installed app owns this any more"
+                level, why = "less", f"app still installed, data untouched for {days} days"
         elif kind == "log":
             level, why = "safe", "a log an app wrote and never reads again"
         elif kind == "installer":
@@ -722,7 +726,7 @@ def scan():
         elif kind == "cache":
             keep, reason = precious_cache(item) if where == "Caches" else (False, "")
             if keep:
-                level, why, protected = "important", reason, True
+                level, why = "important", reason
             else:
                 why = "the app rebuilds this when it needs it"
 
@@ -751,7 +755,6 @@ def scan():
             "when": when,
             "level": level,
             "why": why,
-            "protected": protected,
         })
 
     try:
@@ -932,10 +935,7 @@ def allowed(path):
         return False, "that is an entire scan folder"
 
     if p.parent == caches:
-        keep, reason = precious_cache(p)
-        if keep:
-            return False, reason
-        return True, ""
+        return True, ""          # the warning is on the row; the choice is theirs
 
     if any(p.parent == d.resolve() for d in LOG_DIRS if d.exists()):
         return True, ""
@@ -944,8 +944,11 @@ def allowed(path):
         return True, ""
 
     if p.parent in appdatas:
-        if p.name.lower() in KEEP_APPDATA or p.name.lower() in SKIP:
-            return False, "holds work that cannot be rebuilt"
+        # KEEP_APPDATA is a warning, not a veto: app data goes to the Trash and
+        # can be dragged back. SKIP is different, those are the private folders
+        # macOS guards and Skurra has no business in.
+        if p.name.lower() in SKIP:
+            return False, "one of the private folders Skurra leaves alone"
         return True, ""
 
     if p.name in CACHE_INSIDE_APPS and p.parent.parent in appdatas:

@@ -570,7 +570,7 @@ function rowsFor(kind, list, biggest, limit) {
       <div class="row ${state} ${kind} ${r.level}">
         <span class="fill" style="width:${w}%"></span>
         <button class="peek" type="button" data-peek="${r.path}" title="See what is inside"><span>\u203a</span></button>
-        <input type="checkbox" data-path="${r.path}" ${r.protected ? "disabled" : ""} ${chosen.has(r.path) ? "checked" : ""}>
+        <input type="checkbox" data-path="${r.path}" ${chosen.has(r.path) ? "checked" : ""}>
         <span class="who"><b>${r.name}<span class="tag">${tag}</span></b><em>${r.where}${r.why ? " · " + r.why : ""}</em></span>
         <span class="num">${size(r.mb)}</span>
         <span class="age">${age}</span>
@@ -619,7 +619,7 @@ function draw() {
   $("#list-data").innerHTML = data.length
     ? group("safe", "Safe to delete", "No installed app owns these and nothing has touched them in months.", safe, biggest) +
       group("less", "Less important", "The app is still installed but has not used this in months. Removing it is usually fine, the app starts fresh.", less, biggest) +
-      group("important", "Important", "In use, or holds work that cannot be rebuilt. Left alone on purpose.", important, biggest)
+      group("important", "Important", "In use, or holds work that cannot be rebuilt. You can still remove these \u2014 look before you do.", important, biggest)
     : `<div class="empty">Nothing here.</div>`;
   $("#list-app").innerHTML = rowsFor("app", apps, biggest);
   $("#out").hidden = false;
@@ -887,9 +887,15 @@ $("#trash").onclick = async () => {
   const items = picked(["app", "idle", "installer"]);
   const names = items.map(r => r.name).join("\n");
   const apps = items.some(r => r.kind === "app");
+  // Nothing is locked any more, so the warning belongs here, at the moment
+  // it matters, naming what each risky one actually holds.
+  const care = items.filter(r => r.level === "important");
+  const warn = care.length
+    ? `\n\nTake care with:\n${care.map(r => `\u2022 ${r.name} \u2014 ${r.why}`).join("\n")}`
+    : "";
   const msg = WIN && apps
-    ? `Remove these?\n\n${names}\n\nPrograms open their own uninstaller. Folders go to the Recycle Bin.`
-    : `Move these to the ${T()}?\n\n${names}\n\nYou can drag them back out until you empty it.`;
+    ? `Remove these?\n\n${names}${warn}\n\nPrograms open their own uninstaller. Folders go to the Recycle Bin.`
+    : `Move these to the ${T()}?\n\n${names}${warn}\n\nYou can drag them back out until you empty it.`;
   if (!confirm(msg)) return;
   busy(true, `Moving to ${T()}.`, `Moving to ${T()}`);
   try {
@@ -924,7 +930,12 @@ async function trashFiles() {
 $("#clear").onclick = async () => {
   const items = picked(["cache", "log"]);
   const names = items.map(r => `${r.name} (${r.where})`).join("\n");
-  if (!confirm(`Clear these caches now?\n\n${names}\n\nThey are deleted straight away, not moved to the Trash. Apps rebuild them as needed.`)) return;
+  const care = items.filter(r => r.level === "important");
+  const warn = care.length
+    ? `\n\nTake care with:\n${care.map(r => `\u2022 ${r.name} \u2014 ${r.why}`).join("\n")}`
+    : "";
+  if (!confirm(`Clear these now?\n\n${names}${warn}`
+      + `\n\nThese are deleted on the spot, not moved to the ${T()}, so this cannot be undone.`)) return;
   busy(true, "Clearing caches.", "Clearing");
   try {
     const res = await (await fetch("/api/clear",

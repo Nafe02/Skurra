@@ -1,5 +1,5 @@
 {
-  "version": "1.14.0",
+  "version": "1.15.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "The folder list now says why each one is wanted, the ticks work, and nothing is asked for during a scan."
+  "notes": "Leftovers from apps you have uninstalled are no longer marked important, and nothing is locked: you decide what goes."
 }
