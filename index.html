@@ -51,6 +51,9 @@ h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 .ring .pct { fill: var(--ink); font-size: 19px; font-weight: 500;
              text-anchor: middle; dominant-baseline: central; }
 .loadmsg { color: var(--dim); font-size: 14px; margin: 14px 0 0; }
+.loadwhere { color: var(--dim); font-size: 12px; margin: 5px 0 0; opacity: .75;
+             min-height: 17px; font-variant-numeric: tabular-nums;
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .state b { display: block; font-weight: 400; }
 .state em { display: block; font-style: normal; font-size: 11px;
             color: var(--dim); margin-top: 2px; }
@@ -125,6 +128,26 @@ h3.important { color: #b5643d; }
 .logrow b { font-weight: 400; color: var(--ink); flex: 1; }
 .logrow.refused b { color: var(--dim); text-decoration: line-through; }
 .warn { color: var(--patina); font-size: 13px; margin: 10px 0 0; }
+/* ---- search ---- */
+.finder { display: flex; align-items: center; gap: 10px; margin-bottom: var(--step);
+          padding: 0 14px; border-radius: 10px; border: 1px solid var(--rule); background: var(--card); }
+.finder[hidden] { display: none; }
+.finder:focus-within { border-color: var(--patina); }
+.fico { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--dim);
+        stroke-width: 2; stroke-linecap: round; }
+.finder:focus-within .fico { stroke: var(--patina); }
+#find { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 11px 0;
+        border: 0; background: none; color: var(--ink); outline: none; }
+#find::-webkit-search-cancel-button { display: none; }
+.fclear { font: inherit; font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 6px;
+          border: 0; background: none; color: var(--dim); }
+.fclear:hover { color: var(--ink); }
+.fcount { flex: none; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.row.small .num { color: var(--dim); }
+.smallhead { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px;
+             font-size: 12px; font-weight: 500; color: var(--dim); text-transform: uppercase;
+             letter-spacing: .06em; }
+.smallhead::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
 /* ---- disk view ---- */
 .views { display: flex; gap: 6px; margin-bottom: var(--step); }
 .view { font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; padding: 8px 16px;
@@ -314,7 +337,19 @@ h3.important { color: #b5643d; }
       <text class="pct" id="pct" x="48" y="48">0%</text>
     </svg>
     <p class="loadmsg" id="loadmsg">Scanning</p>
+    <p class="loadwhere" id="loadwhere"></p>
   </div>
+
+  <div class="finder" id="finder" hidden>
+    <svg class="fico" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+    </svg>
+    <input id="find" type="search" autocomplete="off" spellcheck="false"
+           placeholder="Search apps, caches and leftovers by name">
+    <button class="fclear" id="fclear" type="button" title="Clear" hidden>&times;</button>
+    <span class="fcount" id="fcount"></span>
+  </div>
+  <p class="warn" id="offscreen"></p>
 
   <div id="out" hidden>
     <details class="box" id="box-cache" open>
@@ -381,7 +416,7 @@ h3.important { color: #b5643d; }
     </div>
   </details>
 
-  <details class="box" id="box-log" ontoggle="if (this.open) loadLog()">
+  <details class="box" id="box-moved" ontoggle="if (this.open) loadLog()">
     <summary>What Skurra has moved <span class="meta" id="meta-log"></span></summary>
     <div class="inner" id="logrows"></div>
   </details>
@@ -400,6 +435,7 @@ let WIN = false;                                   // set from /api/update
 const T = () => WIN ? "Recycle Bin" : "Trash";
 const TOP = 3;                       // caches shown before "View more"
 let moreCaches = false;
+let query = "";                      // what is typed in the search box
 
 function note(t) { $("#note").textContent = t; }
 const byPath = p => rows.find(r => r.path === p);
@@ -435,6 +471,7 @@ function watch(on) {
       try {
         const p = await (await fetch(view === "disk" ? "/api/exploring" : "/api/progress")).json();
         if (p.total) target = Math.min(99, p.done / p.total * 100);
+        $("#loadwhere").textContent = p.where || "";
       } catch (e) {}
     }, 150);
   } else {
@@ -449,6 +486,7 @@ function finish() {
   clearInterval(poller);
   poller = null;
   target = 100;
+  $("#loadwhere").textContent = "";
   return new Promise(done => setTimeout(done, 420));
 }
 
@@ -465,11 +503,32 @@ function busy(on, message, label) {
 
 // ---------------------------------------------------------------- scanning
 
+// A full scan takes minutes, and the window hangs up on any single request
+// after about one. So we start the scan, then watch it: every request here is
+// over in milliseconds, which is why the old "The scan failed" cannot happen.
 async function scan() {
-  busy(true, "Scanning your disk. This takes a minute.", "Scanning");
+  busy(true, "Scanning your disk. This takes a few minutes.", "Scanning");
   $("#out").hidden = true;
   try {
-    const got = await (await fetch("/api/scan")).json();
+    await fetch("/api/scan");
+    let misses = 0;
+    while (true) {
+      await new Promise(r => setTimeout(r, 500));
+      let p;
+      try {
+        p = await (await fetch("/api/progress")).json();
+      } catch (e) {
+        if (++misses > 20) throw e;   // one dropped poll is not a failed scan
+        continue;
+      }
+      misses = 0;
+      if (!p.running) {
+        if (p.error) throw new Error(p.error);
+        if (p.ready) break;
+        throw new Error("the scan stopped before it finished");
+      }
+    }
+    const got = await (await fetch("/api/result")).json();
     rows = got.items || [];
     skipped = got.skipped || [];
     chosen.clear();
@@ -478,7 +537,7 @@ async function scan() {
     draw();
   } catch (e) {
     busy(false);
-    note("The scan failed. Check the Terminal window, it may have stopped.");
+    note("The scan stopped: " + (e.message || e) + ". Try again.");
   }
   loadBin();
 }
@@ -558,7 +617,14 @@ function rowsFor(kind, list, biggest, limit) {
   if (!list.length) return `<div class="empty">Nothing here.</div>`;
   let out = "";
   const hidden = limit && list.length > limit ? list.length - limit : 0;
+  // Big ones first, then anything too small for a drawer of its own under a
+  // line that says so, so a search result is never mistaken for a big find.
+  let marked = false;
   for (const r of (hidden ? list.slice(0, limit) : list)) {
+    if (r.small && !marked) {
+      marked = true;
+      out += `<div class="smallhead">too small to list by default</div>`;
+    }
     const state = r.change === "unchanged" ? "unchanged" : "active";
     const w = Math.max(4, Math.round(r.mb / biggest * 100));
     const age = r.days >= 9999 ? "never opened"
@@ -567,7 +633,7 @@ function rowsFor(kind, list, biggest, limit) {
     const tag = kind === "app" ? "app" : kind === "cache" ? "cache"
               : kind === "log" ? "log" : kind === "installer" ? "installer" : "app data";
     out += `
-      <div class="row ${state} ${kind} ${r.level}">
+      <div class="row ${state} ${kind} ${r.level}${r.small ? " small" : ""}">
         <span class="fill" style="width:${w}%"></span>
         <button class="peek" type="button" data-peek="${r.path}" title="See what is inside"><span>\u203a</span></button>
         <input type="checkbox" data-path="${r.path}" ${chosen.has(r.path) ? "checked" : ""}>
@@ -588,18 +654,49 @@ function group(level, title, blurb, list, biggest) {
           <p class="sub">${blurb}</p>${rowsFor("idle", list, biggest)}`;
 }
 
+function drawFinder(shownRows, searching) {
+  $("#finder").hidden = !rows.length;
+  $("#fclear").hidden = !searching;
+  const big = rows.filter(r => !r.small).length;
+  const extra = shownRows.filter(r => r.small).length;
+  $("#fcount").textContent = searching
+    ? `${shownRows.length} of ${rows.length}` + (extra ? ` · ${extra} small` : "")
+    : `${big} item${big === 1 ? "" : "s"}`;
+}
+
+// What the drawers show. Without a search that is everything big enough to be
+// worth listing; with one it is everything the scan measured, however small,
+// because a search that cannot reach a 2 MB app is no use.
+function visible() {
+  const q = query.trim().toLowerCase();
+  if (!q) return rows.filter(r => !r.small);
+  return rows.filter(r =>
+    (r.name || "").toLowerCase().includes(q) ||
+    (r.where || "").toLowerCase().includes(q) ||
+    (r.kind || "").toLowerCase().includes(q) ||
+    (r.why || "").toLowerCase().includes(q));
+}
+
 function draw() {
-  const apps = rows.filter(r => r.kind === "app");
-  const data = rows.filter(r => r.kind === "idle");
-  const cache = rows.filter(r => r.kind === "cache");
-  const logs = rows.filter(r => r.kind === "log");
-  const installers = rows.filter(r => r.kind === "installer");
-  const biggest = rows.length ? Math.max(...rows.map(r => r.mb)) : 1;
+  const shownRows = visible();
+  const searching = query.trim() !== "";
+  const apps = shownRows.filter(r => r.kind === "app");
+  const data = shownRows.filter(r => r.kind === "idle");
+  const cache = shownRows.filter(r => r.kind === "cache");
+  const logs = shownRows.filter(r => r.kind === "log");
+  const installers = shownRows.filter(r => r.kind === "installer");
+  const biggest = shownRows.length ? Math.max(...shownRows.map(r => r.mb)) : 1;
   const safe = data.filter(r => r.level === "safe");
   const less = data.filter(r => r.level === "less");
   const important = data.filter(r => r.level === "important");
 
-  note(rows.length
+  drawFinder(shownRows, searching);
+
+  note(searching
+    ? (shownRows.length
+        ? `${shownRows.length} match${shownRows.length === 1 ? "" : "es"} for "${query.trim()}", ${size(mb(shownRows))} in total.`
+        : `Nothing called "${query.trim()}". Skurra searched ${rows.length} measured items.`)
+    : rows.length
     ? `${size(mb(cache))} of caches, ${size(mb(safe))} of app data safe to remove, ${size(mb(less))} worth a look. ${apps.length} apps installed.`
     : "Nothing found. Lower the numbers at the top of app.py.");
 
@@ -611,7 +708,9 @@ function draw() {
 
   $("#meta-log2").textContent = meta(logs);
   $("#meta-installer").textContent = meta(installers);
-  $("#list-cache").innerHTML = rowsFor("cache", cache, biggest, moreCaches ? 0 : TOP);
+  // While searching, show every match: hiding results behind "View 9 more"
+  // would be its own way of losing the thing you were looking for.
+  $("#list-cache").innerHTML = rowsFor("cache", cache, biggest, (moreCaches || searching) ? 0 : TOP);
   $("#list-log").innerHTML = rowsFor("log", logs, biggest);
   $("#list-installer").innerHTML = rowsFor("installer", installers, biggest);
   const more = $("#more-cache");
@@ -623,6 +722,17 @@ function draw() {
     : `<div class="empty">Nothing here.</div>`;
   $("#list-app").innerHTML = rowsFor("app", apps, biggest);
   $("#out").hidden = false;
+
+  // A search should put the answer in front of you, not behind a closed
+  // drawer. So open the ones that matched and shut the ones that did not.
+  if (searching) {
+    for (const [id, list] of [["box-cache", cache], ["box-log", logs],
+                              ["box-installer", installers], ["box-data", data],
+                              ["box-app", apps]]) {
+      const box = document.getElementById(id);
+      if (box) box.open = list.length > 0;
+    }
+  }
 
   $("#skip").innerHTML = skipped.length
     ? `Left alone: ${skipped.map(s => `<b>${s.name}</b> (${size(s.mb)}, ${s.why})`).join(", ")}. `
@@ -672,6 +782,14 @@ function refresh() {
   const hasApp = picked(["app"]).length > 0;
   $("#trash").innerHTML = (WIN && hasApp ? "Remove" : "Move to " + T()) + (t ? ` <span class="count">(${t})</span>` : "");
   $("#clear").innerHTML = "Clear caches" + (c ? ` <span class="count">(${c})</span>` : "");
+
+  // The buttons count everything ticked, including rows the search is hiding.
+  // Say so, so nothing goes to the Trash unannounced.
+  const onScreen = new Set(visible().map(r => r.path));
+  const away = [...chosen].filter(p => !onScreen.has(p)).length;
+  $("#offscreen").textContent = away
+    ? `${away} ticked item${away === 1 ? " is" : "s are"} hidden by your search, and still counted above.`
+    : "";
 }
 
 function report(res, verb) {
@@ -867,9 +985,23 @@ for (const b of document.querySelectorAll(".view")) {
     $("#pick").hidden = view === "disk";
     $("#clear").hidden = view === "disk";
     $("#scan").textContent = view === "disk" ? "Refresh" : "Scan";
+    $("#finder").hidden = view === "disk" || !rows.length;
     if (view === "disk") { if (!here) showDisk(); else { drawDisk(here); } }
     else { dpick.clear(); rows.length ? draw() : note(""); }
   };
+}
+
+// ---------------------------------------------------------------- searching
+
+$("#find").oninput = () => { query = $("#find").value; draw(); };
+$("#find").onkeydown = e => { if (e.key === "Escape") clearFind(); };
+$("#fclear").onclick = clearFind;
+
+function clearFind() {
+  query = "";
+  $("#find").value = "";
+  draw();
+  $("#find").focus();
 }
 
 // ---------------------------------------------------------------- actions

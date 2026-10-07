@@ -32,6 +32,18 @@ own sandbox, so neither can be a real cleaner. Skurra is a desktop app.
 - Windows tester feedback, fix, rebuild, resend                     ongoing
 - Disk space view: browse any folder in Home, see what is inside by
   kind, drill in, tick files, send them to the Trash                 done
+- Updates install inside the app, with a progress bar, and the app
+  restarts itself. Nobody is sent back to the website               done
+- One permission window on first run: a reason per folder, tick
+  boxes, and "continue without". No trip through System Settings    done
+- Nothing is locked. Important things are labelled and explained,
+  but the choice is always yours                                    done
+- Scan moved off the request: it runs in the background and the
+  page watches it, so a four-minute scan no longer "fails"         done
+- Skurra finds apps one folder deeper (Chrome web apps, and the
+  like), without listing the helper bundles inside other apps      done
+- Search box: finds any app, cache or leftover by name, including
+  the small ones the drawers hide                                   done
 - Keep testing on both platforms                                    <- you are here
 
 ## Costs that never go away
