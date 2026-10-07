@@ -1,5 +1,5 @@
 {
-  "version": "1.15.0",
+  "version": "1.16.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Leftovers from apps you have uninstalled are no longer marked important, and nothing is locked: you decide what goes."
+  "notes": "Scans no longer fail on a slow machine, Skurra finds web apps it used to miss, and a search box finds anything by name."
 }

@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.15.0"
+VERSION = "1.16.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -183,6 +183,21 @@ def is_ours(path):
     return Path(path).name.lower().startswith("_mei")
 
 
+def is_our_app(app):
+    """True for Skurra's own bundle, so it never offers to bin itself.
+
+    is_ours() asks "is this path inside Skurra's files", which is the wrong way
+    round for a .app: HERE is Contents/Frameworks *inside* the bundle, so the
+    bundle itself never matched and Skurra listed itself as an app to remove.
+    """
+    if app.stem.lower() == "skurra":
+        return True
+    try:
+        return HERE == app or HERE.is_relative_to(app)
+    except (AttributeError, ValueError):
+        return str(HERE).lower().startswith(str(app).lower() + os.sep)
+
+
 PERMS_FILE = DATA / "permissions.json"
 
 def load_perms():
@@ -326,12 +341,17 @@ BIG_FILE = 100 * 1024 * 1024
 
 # ---------------------------------------------------------------- state
 
-progress = {"done": 0, "total": 0}
+progress = {"done": 0, "total": 0, "where": ""}
 
 # Only one scan at a time. A second request (another tab, a refresh) waits
 # for the running one and gets its result instead of clobbering progress.
 scan_lock = threading.Lock()
 last_scan = {"items": [], "skipped": []}
+
+# A full scan can take minutes, and the window Skurra draws itself in hangs up
+# on any single request after about a minute. So the scan never happens inside
+# a request: it runs in its own thread and the page watches this.
+scan_state = {"running": False, "ready": False, "error": ""}
 
 previous = {}
 if HISTORY.exists():
@@ -422,6 +442,36 @@ def windows_programs():
     return out
 
 
+def app_bundles(folders=None, depth=4):
+    """Every real app inside these folders, as Paths.
+
+    Apps do not always sit at the top. A Chrome web app lives in
+    "~/Applications/Chrome Apps.localized/Grok.app", one folder deeper than a
+    normal download, which is why looking only at the top level missed it.
+
+    This stops the moment it meets a .app, so the helper bundles buried in
+    Chrome's and Slack's "Contents/Frameworks" are never mistaken for apps you
+    could remove.
+    """
+    found = []
+    for folder in (APP_FOLDERS if folders is None else folders):
+        if not folder.exists():
+            continue
+        base = len(folder.parts)
+        for root, dirs, files in os.walk(folder):
+            here = Path(root)
+            if len(here.parts) - base >= depth:
+                dirs.clear()                 # deep enough: no app hides below
+                continue
+            for d in list(dirs):
+                if d == "Contents":          # the inside of a bundle, not an app
+                    dirs.remove(d)
+                elif d.endswith(".app"):
+                    found.append(here / d)
+                    dirs.remove(d)           # don't walk inside the app itself
+    return found
+
+
 uninstallers = {}       # Windows: row path -> command that removes the program
 
 
@@ -440,22 +490,17 @@ def installed_apps():
             except OSError:
                 pass
         return ids, names
-    for folder in APP_FOLDERS + [Path("/System/Applications")]:
-        if not folder.exists():
-            continue
-        for root, dirs, files in os.walk(folder):
-            for d in list(dirs):
-                if not d.endswith(".app"):
-                    continue
-                names.add(d[:-4].lower())
-                try:
-                    with open(Path(root) / d / "Contents/Info.plist", "rb") as f:
-                        bid = plistlib.load(f).get("CFBundleIdentifier")
-                        if bid:
-                            ids.add(bid.lower())
-                except Exception:
-                    pass
-                dirs.remove(d)      # don't walk inside the app itself
+    # Apple's own apps count as owners too, so they are included here even
+    # though they are never offered for removal.
+    for app in app_bundles(APP_FOLDERS + [Path("/System/Applications")]):
+        names.add(app.stem.lower())
+        try:
+            with open(app / "Contents/Info.plist", "rb") as f:
+                bid = plistlib.load(f).get("CFBundleIdentifier")
+                if bid:
+                    ids.add(bid.lower())
+        except Exception:
+            pass
     return ids, names
 
 
@@ -561,17 +606,13 @@ def scan():
             key = where if where else Path("uninstall:" + name)
             uninstallers[str(key)] = (name, cmd, kb)
             targets.append((key, "Programs", "app"))
-    for folder in APP_FOLDERS:
-        if not folder.exists():
+    for app in sorted(app_bundles()):
+        if is_apple(app) or is_our_app(app):
             continue
-        try:
-            apps = sorted(folder.glob("*.app"))
-        except OSError:
-            continue
-        for app in apps:
-            if is_apple(app):
-                continue
-            targets.append((app, "Applications", "app"))
+        # Name the folder it actually came from, so a Chrome web app reads
+        # "Chrome Apps" rather than pretending to be a normal download.
+        where = "Applications" if app.parent in APP_FOLDERS else app.parent.name
+        targets.append((app, where.replace(".localized", ""), "app"))
 
     # logs apps leave behind
     for folder in LOG_DIRS:
@@ -639,6 +680,9 @@ def scan():
     progress["done"] = 0
 
     for item, where, kind in targets:
+        # Say what is being measured, so a four-minute scan looks like work
+        # happening rather than a hang.
+        progress["where"] = f"{where}/{item.name}" if where else item.name
         if str(item) in guarded:
             if not can_read(item, 1.5):        # still shut: leave it be
                 skipped.append({"name": item.name, "where": where, "mb": 0,
@@ -692,12 +736,13 @@ def scan():
         lines.append(f"{stamp},{key},{size},{days}")
         fresh[key] = size
 
-        if kind in ("idle", "cache") and size / 1024 / 1024 < MIN_MB:
-            continue
-        if kind == "log" and size / 1024 / 1024 < 1:
-            continue
-        if kind == "installer" and size / 1024 / 1024 < 5:
-            continue
+        # Too small to be worth a drawer of its own, but still kept and still
+        # searchable. Hiding these outright is why a 2 MB app could not be
+        # found by name.
+        mbs = size / 1024 / 1024
+        small = ((kind in ("idle", "cache") and mbs < MIN_MB)
+                 or (kind == "log" and mbs < 1)
+                 or (kind == "installer" and mbs < 5))
 
         # how safe is it to remove this?
         level, why = "safe", ""
@@ -755,6 +800,7 @@ def scan():
             "when": when,
             "level": level,
             "why": why,
+            "small": small,
         })
 
     try:
@@ -769,25 +815,53 @@ def scan():
 
     progress["total"] = 0
     progress["done"] = 0
+    progress["where"] = ""
     found.sort(key=lambda r: r["mb"], reverse=True)
     return {"items": found, "skipped": skipped}
 
 
-def scan_once():
-    """Same idea for the cleaning scan: a stuck one must not block the rest."""
+def scan_worker():
+    """Runs one scan to the end, in its own thread, and never raises."""
     global last_scan
-    if scan_lock.acquire(blocking=False):
-        try:
-            last_scan = scan()
-            return last_scan
-        finally:
-            scan_lock.release()
-    if not scan_lock.acquire(timeout=90):
-        return last_scan                     # whatever we last managed to read
     try:
-        return last_scan
+        last_scan = scan()
+        scan_state["error"] = ""
+    except Exception as e:
+        scan_state["error"] = str(e) or e.__class__.__name__
     finally:
+        # Order matters: the page only trusts "ready" once "running" is false,
+        # so clear running last.
+        scan_state["ready"] = True
+        scan_state["running"] = False
+        progress["where"] = ""
         scan_lock.release()
+
+
+def start_scan():
+    """Begins a scan if one is not already going. Returns at once, either way.
+
+    A scan takes minutes, and the window gives up on a request after about
+    one. So no request ever waits for it: this starts the work and the page
+    watches /api/progress until it finishes.
+    """
+    if not scan_lock.acquire(blocking=False):
+        return {"started": False, "running": True}
+    scan_state.update(running=True, ready=False, error="")
+    progress.update(done=0, total=1, where="")
+    threading.Thread(target=scan_worker, daemon=True).start()
+    return {"started": True, "running": True}
+
+
+def scan_status():
+    return {"done": progress["done"], "total": progress["total"],
+            "where": progress["where"], "running": scan_state["running"],
+            "ready": scan_state["ready"], "error": scan_state["error"]}
+
+
+def scan_result():
+    out = dict(last_scan)
+    out["error"] = scan_state["error"]
+    return out
 
 
 # ---------------------------------------------------------------- disk walk
@@ -1660,9 +1734,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/scan":
-            self.reply(scan_once())
+            self.reply(start_scan())
         elif self.path == "/api/progress":
-            self.reply(progress)
+            self.reply(scan_status())
+        elif self.path == "/api/result":
+            self.reply(scan_result())
         elif self.path == "/api/moved":
             self.reply(recent())
         elif self.path == "/api/bin":
