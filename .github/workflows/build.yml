@@ -58,10 +58,34 @@ jobs:
           app.py
       - name: Wrap it in Skurra.dmg
         run: |
+          # Say what we actually have before blaming hdiutil.
+          ls -la dist || true
+          df -h . | tail -1
+          if [ ! -d dist/Skurra.app ]; then
+            echo "::error::PyInstaller did not produce dist/Skurra.app"
+            exit 1
+          fi
+
+          rm -rf dmg Skurra.dmg
           mkdir dmg
           cp -R dist/Skurra.app dmg/
           ln -s /Applications dmg/Applications
-          hdiutil create -volname "Skurra" -srcfolder dmg -ov -format UDZO -quiet Skurra.dmg
+
+          # hdiutil on these runners fails now and then with a busy resource,
+          # and -quiet used to hide the reason, so a failure said nothing at
+          # all. Three goes, and always let it speak.
+          for try in 1 2 3; do
+            echo "--- hdiutil attempt $try ---"
+            if hdiutil create -volname "Skurra" -srcfolder dmg -ov -format UDZO Skurra.dmg; then
+              ls -la Skurra.dmg
+              exit 0
+            fi
+            echo "hdiutil failed on attempt $try"
+            hdiutil detach /Volumes/Skurra -force 2>/dev/null || true
+            sleep 15
+          done
+          echo "::error::hdiutil could not build the disk image after three tries"
+          exit 1
       - uses: actions/upload-artifact@v4
         with:
           name: mac
