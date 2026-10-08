@@ -128,6 +128,9 @@ h3.important { color: #b5643d; }
 .logrow b { font-weight: 400; color: var(--ink); flex: 1; }
 .logrow.refused b { color: var(--dim); text-decoration: line-through; }
 .warn { color: var(--patina); font-size: 13px; margin: 10px 0 0; }
+.warn button { font: inherit; font-size: 13px; cursor: pointer; padding: 0; border: 0;
+               background: none; color: var(--ink); text-decoration: underline; }
+.warn button:hover { color: var(--patina); }
 /* ---- search ---- */
 .finder { display: flex; align-items: center; gap: 10px; margin-bottom: var(--step);
           padding: 0 14px; border-radius: 10px; border: 1px solid var(--rule); background: var(--card); }
@@ -783,13 +786,23 @@ function refresh() {
   $("#trash").innerHTML = (WIN && hasApp ? "Remove" : "Move to " + T()) + (t ? ` <span class="count">(${t})</span>` : "");
   $("#clear").innerHTML = "Clear caches" + (c ? ` <span class="count">(${c})</span>` : "");
 
-  // The buttons count everything ticked, including rows the search is hiding.
-  // Say so, so nothing goes to the Trash unannounced.
+  // The buttons count everything ticked, including rows not on screen. Say so,
+  // name the real reason, and always leave a way to clear them: a count you
+  // cannot bring down is worse than no count.
   const onScreen = new Set(visible().map(r => r.path));
-  const away = [...chosen].filter(p => !onScreen.has(p)).length;
-  $("#offscreen").textContent = away
-    ? `${away} ticked item${away === 1 ? " is" : "s are"} hidden by your search, and still counted above.`
-    : "";
+  const away = [...chosen].filter(p => !onScreen.has(p));
+  const box = $("#offscreen");
+  if (!away.length) {
+    box.innerHTML = "";
+  } else {
+    const why = query.trim() ? "hidden by your search" : "not shown";
+    box.innerHTML = `${away.length} ticked item${away.length === 1 ? " is" : "s are"} ${why}, `
+      + `and still counted above. <button type="button" id="untickaway">Untick them</button>`;
+    $("#untickaway").onclick = () => {
+      for (const path of away) chosen.delete(path);
+      draw();
+    };
+  }
 }
 
 function report(res, verb) {
@@ -1009,7 +1022,10 @@ function clearFind() {
 $("#scan").onclick = () => view === "disk" ? openDir(here ? here.path : "") : scan();
 
 $("#pick").onclick = () => {
-  for (const r of rows) if (r.kind === "idle" && r.level === "safe") chosen.add(r.path);
+  // Only what is actually on screen. Ticking the small rows the drawers hide
+  // put items in the count that could never be unticked, because there was no
+  // box to untick.
+  for (const r of visible()) if (r.kind === "idle" && r.level === "safe") chosen.add(r.path);
   $("#box-data").open = true;
   draw();
 };
@@ -1031,15 +1047,44 @@ $("#trash").onclick = async () => {
   if (!confirm(msg)) return;
   busy(true, `Moving to ${T()}.`, `Moving to ${T()}`);
   try {
-    const res = await (await fetch("/api/trash",
-      { method: "POST", body: JSON.stringify(items) })).json();
+    const res = await runJob("/api/trash", items, true);
     await scan();
     report(res, WIN && apps ? "Removed:" : `Moved to the ${T()}:`);
   } catch (e) {
     busy(false);
-    note("Nothing moved. Check the Terminal window.");
+    note(`Could not finish moving: ${e.message || e}. Check "What Skurra has moved" for what did go.`);
   }
 };
+
+// Long jobs (clearing, trashing, emptying) are started, then watched. Doing
+// them inside one request is how a clear that worked could still report
+// "Nothing cleared": the window hangs up after about a minute, and the page
+// read that as failure while the delete ran happily on.
+async function runJob(url, body, label) {
+  const begun = await (await fetch(url, { method: "POST", body: JSON.stringify(body) })).json();
+  if (begun.started === false && !begun.running) throw new Error("Skurra is busy with something else");
+  let misses = 0;
+  while (true) {
+    await new Promise(r => setTimeout(r, 500));
+    let j;
+    try {
+      j = await (await fetch("/api/job")).json();
+    } catch (e) {
+      if (++misses > 20) throw e;        // one dropped poll is not a failure
+      continue;
+    }
+    misses = 0;
+    if (j.total) target = Math.min(99, j.done / j.total * 100);
+    if (j.where && label) $("#loadwhere").textContent = j.where;
+    if (!j.running) {
+      if (j.error) throw new Error(j.error);
+      break;
+    }
+  }
+  const res = await (await fetch("/api/jobresult")).json();
+  if (res.error) throw new Error(res.error);
+  return res;
+}
 
 async function trashFiles() {
   const items = dirRows.filter(i => dpick.has(i.path));
@@ -1048,15 +1093,17 @@ async function trashFiles() {
   if (!confirm(`Move these to the ${where}?\n\n${names}\n\nYou can put them back until you empty it.`)) return;
   busy(true, `Moving to the ${where}.`, "Moving");
   try {
-    const res = await (await fetch("/api/trash",
-      { method: "POST", body: JSON.stringify(items.map(i => ({ ...i, kind: "file" }))) })).json();
+    const res = await runJob("/api/trash", items.map(i => ({ ...i, kind: "file" })), true);
     dpick.clear();
     const d = await (await fetch("/api/explore?path=" + encodeURIComponent(here.path))).json();
     await finish(); busy(false);
     drawDisk(d);
     report(res, `Moved to the ${where}:`);
     loadBin();
-  } catch (e) { busy(false); note("Nothing moved. Check the Terminal window."); }
+  } catch (e) {
+    busy(false);
+    note(`Could not finish moving: ${e.message || e}. Check "What Skurra has moved" for what did go.`);
+  }
 }
 
 $("#clear").onclick = async () => {
@@ -1070,13 +1117,12 @@ $("#clear").onclick = async () => {
       + `\n\nThese are deleted on the spot, not moved to the ${T()}, so this cannot be undone.`)) return;
   busy(true, "Clearing caches.", "Clearing");
   try {
-    const res = await (await fetch("/api/clear",
-      { method: "POST", body: JSON.stringify(items) })).json();
+    const res = await runJob("/api/clear", items, true);
     await scan();
     report(res, "Cleared:");
   } catch (e) {
     busy(false);
-    note("Nothing cleared. Check the Terminal window.");
+    note(`Could not finish clearing: ${e.message || e}. Check "What Skurra has moved" for what did go.`);
   }
 };
 
@@ -1086,13 +1132,12 @@ $("#binpick").onclick = async () => {
   $("#binpick").disabled = true;
   note(`Deleting ${names.length} item${names.length === 1 ? "" : "s"}.`);
   try {
-    const res = await (await fetch("/api/binremove",
-      { method: "POST", body: JSON.stringify(names) })).json();
+    const res = await runJob("/api/binremove", names, false);
     note(`Deleted ${res.done} of ${res.asked} for good.`
       + (res.failed.length ? ` Could not delete ${res.failed.join(", ")}.` : ""));
     loadLog();
   } catch (e) {
-    note(`Nothing was deleted. Check the ${T()} yourself.`);
+    note(`Could not finish deleting: ${e.message || e}. Check the ${T()} yourself.`);
   }
   await loadBin();
   loadBinItems();
@@ -1103,11 +1148,11 @@ $("#empty").onclick = async () => {
   $("#empty").disabled = true;
   note(`Emptying the ${T()}.`);
   try {
-    const res = await (await fetch("/api/empty", { method: "POST", body: "{}" })).json();
+    const res = await runJob("/api/empty", {}, false);
     note(res.ok ? `${T()} emptied. The space is yours again.` : `Could not empty the ${T()}. Try it from the ${WIN ? "desktop" : "Finder"}.`);
     loadLog();
   } catch (e) {
-    note("Could not empty the Trash. Check the Terminal window.");
+    note(`Could not empty the ${T()}: ${e.message || e}.`);
   }
   $("#empty").disabled = false;
   loadBin();

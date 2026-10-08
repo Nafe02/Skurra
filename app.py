@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.16.0"
+VERSION = "1.17.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -517,13 +517,8 @@ def has_an_owner(name, ids, names):
     return False
 
 
-def last_used(path):
-    """When Spotlight last saw this opened, as a timestamp. 0 if unknown."""
-    if WINDOWS:
-        return 0
-    r = subprocess.run(["mdls", "-name", "kMDItemLastUsedDate", "-raw", str(path)],
-                       capture_output=True, text=True)
-    raw = r.stdout.strip()
+def _as_stamp(raw):
+    raw = raw.strip()
     if not raw or raw == "(null)":
         return 0
     for fmt in ("%Y-%m-%d %H:%M:%S %z", "%Y-%m-%d %I:%M:%S %p %z"):
@@ -534,7 +529,69 @@ def last_used(path):
     return 0
 
 
+def last_used(path):
+    """When Spotlight last saw this opened, as a timestamp. 0 if unknown."""
+    if WINDOWS:
+        return 0
+    r = subprocess.run(["mdls", "-name", "kMDItemLastUsedDate", "-raw", str(path)],
+                       capture_output=True, text=True)
+    return _as_stamp(r.stdout)
+
+
+def last_used_many(paths):
+    """The same, for every app at once: {path: timestamp}.
+
+    Asking mdls once per app cost about 0.8 seconds each, which was most of a
+    minute on its own. One call answers for all of them in under a second.
+
+    mdls answers positionally, with no filename to match on, so a file that
+    disappears mid-list would shift every later answer up by one and pin one
+    app's date on another. If the count does not come back exactly right we
+    throw the batch away and ask one at a time.
+    """
+    paths = list(paths)
+    if WINDOWS or not paths:
+        return {}
+    here = [p for p in paths if os.path.exists(p)]
+    out = {}
+    try:
+        r = subprocess.run(["mdls", "-name", "kMDItemLastUsedDate"] + [str(p) for p in here],
+                           capture_output=True, text=True, timeout=30)
+        lines = [l for l in r.stdout.splitlines() if l.strip()]
+        if len(lines) == len(here):
+            for path, line in zip(here, lines):
+                _, _, value = line.partition("=")
+                out[path] = _as_stamp(value)
+            return out
+    except (OSError, subprocess.SubprocessError):
+        pass
+    for path in here:                      # the batch did not line up: be safe
+        out[path] = last_used(path)
+    return out
+
+
 # ---------------------------------------------------------------- scanning
+
+def measure_bundle(path, seconds):
+    """Size of an app bundle, the quick way.
+
+    du is C and walks the same tree several times faster than Python can.
+    It only reports a size, which is fine here: an app's age comes from
+    Spotlight, and the bundle's own date is the fallback. Returns None if du
+    is unavailable or too slow, and the caller walks it properly instead.
+    """
+    if WINDOWS:
+        return None
+    try:
+        r = subprocess.run(["du", "-sk", str(path)],
+                           capture_output=True, text=True, timeout=seconds)
+        first = r.stdout.split("\t")[0].strip() if r.stdout else ""
+        if first.isdigit():
+            return int(first) * 1024
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    return None
+
 
 def measure(path, tick=None, deadline=None):
     """Returns (total bytes, when anything inside was last changed)."""
@@ -544,22 +601,32 @@ def measure(path, tick=None, deadline=None):
         except OSError:
             return 0, 0
 
+    # One stat per file. os.walk plus getsize plus getmtime asked the disk
+    # three times for what scandir already knows, and getsize on a symlink
+    # reports the size of whatever it points at, which counted some files
+    # inside an app twice over.
     total, newest, since = 0, 0, 0
-    for root, dirs, files in os.walk(path, onerror=lambda e: None):
-        dirs[:] = [d for d in dirs if d.lower() not in SKIP]   # never enter private folders
+    stack = [str(path)]
+    while stack:
         if deadline and time.time() > deadline:
             break
-        for name in files:
-            full = os.path.join(root, name)
+        try:
+            entries = list(os.scandir(stack.pop()))
+        except OSError:
+            continue
+        for e in entries:
             try:
-                chunk = os.path.getsize(full)
-                total += chunk
-                since += chunk
-                t = os.path.getmtime(full)
-                if t > newest:
-                    newest = t
+                if e.is_dir(follow_symlinks=False):
+                    if e.name.lower() not in SKIP:    # never enter private folders
+                        stack.append(e.path)
+                    continue
+                st = e.stat(follow_symlinks=False)
             except OSError:
-                pass
+                continue
+            total += st.st_size
+            since += st.st_size
+            if st.st_mtime > newest:
+                newest = st.st_mtime
         if tick and since > 4_000_000:
             tick(since)
             since = 0
@@ -679,6 +746,10 @@ def scan():
     progress["total"] = sum(weights.values()) or 1
     progress["done"] = 0
 
+    # Every app's last-opened date in one go, rather than one call each.
+    app_dates = last_used_many([i for i, w, k in targets
+                                if k == "app" and not str(i).startswith("uninstall:")])
+
     for item, where, kind in targets:
         # Say what is being measured, so a four-minute scan looks like work
         # happening rather than a hang.
@@ -714,6 +785,21 @@ def scan():
         if str(item).startswith("uninstall:"):
             size, touched = uninstallers[str(item)][2] * 1024, 0
             tick(budget)
+        elif kind == "app":
+            # An app's date comes from Spotlight below, so there is nothing to
+            # learn from walking every file inside the bundle. Ask du.
+            quick = without_hanging(lambda: measure_bundle(item, ITEM_LIMIT), ITEM_LIMIT + 5)
+            if quick is None:
+                got = without_hanging(
+                    lambda: measure(item, tick, deadline=time.time() + ITEM_LIMIT),
+                    ITEM_LIMIT + 5)
+            else:
+                try:
+                    stamp_at = os.path.getmtime(item)
+                except OSError:
+                    stamp_at = 0
+                got = (quick, stamp_at)
+                tick(budget)
         else:
             got = without_hanging(
             lambda: measure(item, tick, deadline=time.time() + ITEM_LIMIT),
@@ -731,7 +817,7 @@ def scan():
             continue
 
         if kind == "app":
-            touched = last_used(item) or touched
+            touched = app_dates.get(item, 0) or touched
         days = int((now - touched) / 86400) if touched else 9999
         lines.append(f"{stamp},{key},{size},{days}")
         fresh[key] = size
@@ -1719,6 +1805,131 @@ rm -rf "$work" "$0"
 
 # ---------------------------------------------------------------- server
 
+# ---------------------------------------------------------------- long jobs
+
+# Clearing several GB takes longer than the window will wait for a reply. That
+# is how "Nothing cleared. Check the Terminal window." came to appear over a
+# clear that had worked perfectly: the window hung up, the delete carried on,
+# and the page assumed the worst. Nothing slow happens inside a request now.
+job = {"running": False, "ready": False, "error": "", "done": 0, "total": 0, "where": ""}
+job_lock = threading.Lock()
+job_outcome = {}
+
+
+def start_job(fn):
+    """Run fn in its own thread and answer at once."""
+    global job_outcome
+    if not job_lock.acquire(blocking=False):
+        return {"started": False, "running": True}
+    job.update(running=True, ready=False, error="", done=0, total=0, where="")
+    job_outcome = {}
+
+    def run():
+        global job_outcome
+        try:
+            job_outcome = fn()
+            job["error"] = ""
+        except Exception as e:
+            job_outcome = {}
+            job["error"] = str(e) or e.__class__.__name__
+        finally:
+            job["ready"] = True
+            job["running"] = False
+            job["where"] = ""
+            job_lock.release()
+
+    threading.Thread(target=run, daemon=True).start()
+    return {"started": True, "running": True}
+
+
+def job_status():
+    return {k: job[k] for k in ("done", "total", "where", "running", "ready", "error")}
+
+
+def job_report():
+    out = dict(job_outcome)
+    out["error"] = job["error"]
+    return out
+
+
+def run_sweep(body, wipe, stamp):
+    """Clear caches in place, or move things to the Trash. One item at a time,
+    saying which, so the page can show real progress instead of a guess."""
+    done, refused, failed, partly = 0, [], [], []
+    job.update(total=len(body) or 1, done=0)
+
+    for n, it in enumerate(body):
+        path = it.get("path", "")
+        name = it.get("name", path)
+        job.update(done=n, where=name)
+        ok, why = allowed(path)
+        if ok and wipe and not is_cache(path):
+            ok, why = False, "not a cache, it belongs in the Trash"
+        if not ok:
+            refused.append({"name": name, "why": why})
+            record({"at": stamp, "did": "refused", "path": path, "why": why})
+            continue
+        note = dict(at=stamp, path=path, name=it.get("name"), where=it.get("where"),
+                    days=it.get("days"), kind=it.get("kind"), change=it.get("change"))
+        if wipe:
+            freed, stuck = clear(path)
+            known = load_stuck()
+            if stuck:
+                known.add(path)
+            else:
+                known.discard(path)
+            save_stuck(known)
+            note["mb"] = round(freed / 1024 / 1024, 1)
+            if stuck == -1:
+                failed.append(name)
+                note["did"] = "failed"
+                note["why"] = "Skurra could not open this"
+            elif freed == 0 and stuck:
+                failed.append(name)
+                note["did"] = "failed"
+                note["why"] = "a running program is holding it open"
+            elif stuck:
+                done += 1
+                partly.append(name)
+                note["did"] = "partly cleared"
+                note["why"] = f"{stuck} still in use"
+            else:
+                done += 1
+                note["did"] = "cleared"
+        elif to_trash(path):
+            done += 1
+            note["did"] = "trashed"
+            note["mb"] = it.get("mb")
+        else:
+            failed.append(name)
+            note["did"] = "failed"
+            note["mb"] = it.get("mb")
+        record(note)
+
+    job.update(done=len(body), where="")
+    return {"done": done, "asked": len(body), "refused": refused,
+            "failed": failed, "partly": partly, "bin": bin_state()}
+
+
+def run_binremove(names, stamp):
+    job.update(total=len(names) or 1, done=0)
+    gone, failed = bin_remove(names)
+    for name in names:
+        record({"at": stamp, "did": "failed" if name in failed else "deleted for good",
+                "name": name, "path": str(TRASH)})
+    job.update(done=len(names))
+    return {"done": gone, "asked": len(names), "failed": failed, "bin": bin_state()}
+
+
+def run_empty(stamp):
+    job.update(total=1, done=0, where="Trash")
+    ok = empty_trash()
+    record({"at": stamp, "did": "emptied" if ok else "failed",
+            "path": str(TRASH), "name": "Trash"})
+    job.update(done=1)
+    return {"ok": ok, "bin": bin_state()}
+
+
 class Handler(SimpleHTTPRequestHandler):
 
     def reply(self, data):
@@ -1739,6 +1950,10 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply(scan_status())
         elif self.path == "/api/result":
             self.reply(scan_result())
+        elif self.path == "/api/job":
+            self.reply(job_status())
+        elif self.path == "/api/jobresult":
+            self.reply(job_report())
         elif self.path == "/api/moved":
             self.reply(recent())
         elif self.path == "/api/bin":
@@ -1823,19 +2038,11 @@ class Handler(SimpleHTTPRequestHandler):
 
         if self.path == "/api/binremove":
             names = [str(x) for x in body] if isinstance(body, list) else []
-            gone, failed = bin_remove(names)
-            for name in names:
-                record({"at": stamp, "did": "failed" if name in failed else "deleted for good",
-                        "name": name, "path": str(TRASH)})
-            self.reply({"done": gone, "asked": len(names), "failed": failed,
-                        "bin": bin_state()})
+            self.reply(start_job(lambda: run_binremove(names, stamp)))
             return
 
         if self.path == "/api/empty":
-            ok = empty_trash()
-            record({"at": stamp, "did": "emptied" if ok else "failed",
-                    "path": str(TRASH), "name": "Trash"})
-            self.reply({"ok": ok, "bin": bin_state()})
+            self.reply(start_job(lambda: run_empty(stamp)))
             return
 
         if self.path not in ("/api/trash", "/api/clear"):
@@ -1843,57 +2050,7 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         wipe = self.path == "/api/clear"
-        done, refused, failed, partly = 0, [], [], []
-
-        for it in body:
-            path = it.get("path", "")
-            name = it.get("name", path)
-            ok, why = allowed(path)
-            if ok and wipe and not is_cache(path):
-                ok, why = False, "not a cache, it belongs in the Trash"
-            if not ok:
-                refused.append({"name": name, "why": why})
-                record({"at": stamp, "did": "refused", "path": path, "why": why})
-                continue
-            note = dict(at=stamp, path=path, name=it.get("name"), where=it.get("where"),
-                        days=it.get("days"), kind=it.get("kind"), change=it.get("change"))
-            if wipe:
-                freed, stuck = clear(path)
-                known = load_stuck()
-                if stuck:
-                    known.add(path)
-                else:
-                    known.discard(path)
-                save_stuck(known)
-                note["mb"] = round(freed / 1024 / 1024, 1)
-                if stuck == -1:
-                    failed.append(name)
-                    note["did"] = "failed"
-                    note["why"] = "Skurra could not open this"
-                elif freed == 0 and stuck:
-                    failed.append(name)
-                    note["did"] = "failed"
-                    note["why"] = "a running program is holding it open"
-                elif stuck:
-                    done += 1
-                    partly.append(name)
-                    note["did"] = "partly cleared"
-                    note["why"] = f"{stuck} still in use"
-                else:
-                    done += 1
-                    note["did"] = "cleared"
-            elif to_trash(path):
-                done += 1
-                note["did"] = "trashed"
-                note["mb"] = it.get("mb")
-            else:
-                failed.append(name)
-                note["did"] = "failed"
-                note["mb"] = it.get("mb")
-            record(note)
-
-        self.reply({"done": done, "asked": len(body), "refused": refused,
-                    "failed": failed, "partly": partly, "bin": bin_state()})
+        self.reply(start_job(lambda: run_sweep(body, wipe, stamp)))
 
     def log_message(self, *a):
         pass

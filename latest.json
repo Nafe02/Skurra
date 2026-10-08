@@ -1,5 +1,5 @@
 {
-  "version": "1.16.0",
+  "version": "1.17.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Scans no longer fail on a slow machine, Skurra finds web apps it used to miss, and a search box finds anything by name."
+  "notes": "Scanning is about twice as fast, app sizes are no longer overstated, and clearing tells you the truth about what it did."
 }
