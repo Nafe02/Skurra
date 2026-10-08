@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.17.0"
+VERSION = "1.18.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -175,6 +175,19 @@ for _old in (Path(__file__).parent / "history.csv", Path(__file__).parent / "mov
 # When packaged, Windows and macOS unpack the app into a temp folder called
 # _MEIxxxxx. Those are the files Skurra is running from: never offer them.
 OWN = {str(HERE).lower(), str(DATA).lower()}
+
+# Proof that this build actually got as far as running. An update is only a
+# success once the new copy writes this; a process that merely exists is not
+# enough, because a bootloader sitting on a "Failed to load Python DLL" box
+# counts as alive right up until someone clicks OK.
+STARTED_FILE = DATA / "started.json"
+
+
+def say_started():
+    try:
+        STARTED_FILE.write_text(json.dumps({"version": VERSION, "at": time.time()}))
+    except OSError:
+        pass
 
 def is_ours(path):
     low = str(path).lower()
@@ -1635,6 +1648,17 @@ def install_update():
             # PowerShell, not a .bat: it can wait properly, retry the copy and
             # say what went wrong. The script lives outside the folder it
             # deletes, or it would hold that folder open and leak it.
+            # Both halves of a one-file build: the python child, and the
+            # bootloader that spawned it and will tidy up _MEI afterwards.
+            pids = [os.getpid()]
+            if packaged():
+                try:
+                    parent = os.getppid()
+                    if parent and parent != os.getpid():
+                        pids.append(parent)
+                except OSError:
+                    pass
+            old_pids = ", ".join(str(n) for n in pids)
             script = Path(tempfile.gettempdir()) / f"skurra-swap-{os.getpid()}.ps1"
             # PowerShell, not a .bat: it can wait properly, prove the new copy
             # runs, and put the old one back if it does not.
@@ -1644,6 +1668,7 @@ $fresh  = {ps_quote(str(fresh))}
 $work   = {ps_quote(str(work))}
 $result = {ps_quote(result)}
 $backup = "$target.bak"
+$started = {ps_quote(str(STARTED_FILE))}
 $ok = $false
 $why = 'the update did not finish'
 
@@ -1656,14 +1681,18 @@ function Save-Note {{
 }}
 
 try {{
-  try {{ Wait-Process -Id {os.getpid()} -Timeout 60 -ErrorAction SilentlyContinue }} catch {{}}
+  # Wait for BOTH halves of the old copy. A one-file build is two processes:
+  # the bootloader, and the python child it spawns. Waiting only on the child
+  # was the bug behind "Failed to load Python DLL". The bootloader deletes its
+  # _MEI folder after the child is gone, that folder is named _MEI<its pid>,
+  # and Windows hands pids straight back out, so the new copy could claim the
+  # same name and have its own python312.dll deleted out from under it.
+  foreach ($old in @({old_pids})) {{
+    try {{ Wait-Process -Id $old -Timeout 90 -ErrorAction SilentlyContinue }} catch {{}}
+  }}
 
-  # Waiting on the process id is not enough. Skurra unpacks itself into a
-  # _MEI folder named after that id, and Windows hands the id straight back
-  # out, so a copy started too soon can unpack into the very folder the old
-  # one is still deleting and lose its own python dll. Wait until the file
-  # itself can be opened for writing, which means every handle is gone, then
-  # give the old copy a moment to finish clearing up after itself.
+  # Then wait until the file itself can be opened for writing, which means
+  # every handle is gone, and give the old copy a moment to finish clearing up.
   for ($i = 0; $i -lt 40; $i++) {{
     try {{
       $h = [System.IO.File]::Open($target, 'Open', 'Write', 'None')
@@ -1681,15 +1710,31 @@ try {{
   }}
 
   if ($copied) {{
-    # Started, but does it actually run? Only a copy that is still alive a
-    # moment later counts as an update.
+    # Started, but did it actually get anywhere? "The process still exists"
+    # is not proof: a bootloader showing "Failed to load Python DLL" sits
+    # there looking perfectly alive until someone clicks OK, and the old
+    # check called that a success and threw the backup away. So wait for the
+    # new copy to say so itself, by writing its version into started.json.
+    Remove-Item -LiteralPath $started -Force -ErrorAction SilentlyContinue
     $p = Start-Process -FilePath $target -PassThru
-    Start-Sleep -Seconds 15
-    if ($p -and -not $p.HasExited) {{
+    $alive = $false
+    for ($i = 0; $i -lt 90; $i++) {{
+      Start-Sleep -Seconds 1
+      if (Test-Path -LiteralPath $started) {{
+        try {{
+          # An exact substring, not -match: a regex would read 1.18.0 as
+          # "1 anything 18 anything 0" and accept a version that is not ours.
+          if ((Get-Content -LiteralPath $started -Raw).Contains({ps_quote(chr(34) + "version" + chr(34) + ": " + chr(34) + want + chr(34))})) {{ $alive = $true; break }}
+        }} catch {{}}
+      }}
+      if ($p -and $p.HasExited -and $i -gt 3) {{ break }}
+    }}
+    if ($alive) {{
       $ok = $true; $why = ''
       Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
     }} else {{
       $why = 'the new version would not start, so the old one was put back'
+      try {{ if ($p -and -not $p.HasExited) {{ Stop-Process -Id $p.Id -Force }} }} catch {{}}
       if (Test-Path -LiteralPath $backup) {{
         Copy-Item -LiteralPath $backup -Destination $target -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
@@ -2089,6 +2134,9 @@ stop_older_skurra()
 sweep_leftovers()      # clear anything a failed update left behind
 server = ThreadingHTTPServer(("127.0.0.1", PORT), partial(Handler, directory=str(HERE)))
 threading.Thread(target=server.serve_forever, daemon=True).start()
+
+# The server is up and answering: this build works. Tell the updater.
+say_started()
 
 try:
     import webview

@@ -1,5 +1,5 @@
 {
-  "version": "1.17.0",
+  "version": "1.18.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Scanning is about twice as fast, app sizes are no longer overstated, and clearing tells you the truth about what it did."
+  "notes": "Fixes a Windows update that could leave Skurra unable to start, and puts the working copy back if a new one ever fails."
 }
