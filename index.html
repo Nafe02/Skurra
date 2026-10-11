@@ -41,19 +41,49 @@ h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 @keyframes shimmer { to { background-position: 340px 0; } }
 .loader { display: none; text-align: center; padding: calc(var(--step) * 2.4) 0; }
 .loader.on { display: block; }
-.ring { width: 96px; height: 96px; }
-.ring .track { fill: none; stroke: var(--rule); stroke-width: 5; }
-.ring .arc {
+.diskart { width: 168px; height: 168px; color: var(--dim); }
+.diskart .face { fill: var(--card); }
+.diskart .hub { fill: var(--paper); stroke: var(--rule); stroke-width: 1; }
+.diskart .track { fill: none; stroke: var(--rule); stroke-width: 5; }
+.diskart .arc {
   fill: none; stroke: var(--patina); stroke-width: 5; stroke-linecap: round;
-  stroke-dasharray: 226.2; stroke-dashoffset: 226.2;
-  transform: rotate(-90deg); transform-origin: 48px 48px;
+  stroke-dasharray: 464.96; stroke-dashoffset: 464.96;
+  transform: rotate(-90deg); transform-origin: 80px 80px;
 }
-.ring .pct { fill: var(--ink); font-size: 19px; font-weight: 500;
-             text-anchor: middle; dominant-baseline: central; }
+.diskart .pct { fill: var(--ink); font-size: 22px; font-weight: 600;
+                text-anchor: middle; dominant-baseline: central; }
+.rotor { transform-box: fill-box; transform-origin: center; animation: spin 1.7s linear infinite; }
+.settled .rotor { animation-duration: 5s; }
+.arm { transform-box: view-box; transform-origin: 118px 16px; animation: seek 2.8s ease-in-out infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes seek {
+  0%, 100% { transform: rotate(-18deg); }
+  50% { transform: rotate(22deg); }
+}
 .loadmsg { color: var(--dim); font-size: 14px; margin: 14px 0 0; }
 .loadwhere { color: var(--dim); font-size: 12px; margin: 5px 0 0; opacity: .75;
              min-height: 17px; font-variant-numeric: tabular-nums;
              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reel { text-align: center; padding: 12px 0 8px; }
+.reel[hidden] { display: none; }
+.reel .diskart { width: 112px; height: 112px; }
+.reelbig { margin: 4px 0 0; font-size: 40px; font-weight: 600; letter-spacing: -0.03em; }
+.reelsub { margin: 0 0 12px; color: var(--dim); font-size: 14px; }
+.reellist { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 34px; }
+.chip { font-size: 13px; padding: 6px 12px; border-radius: 99px; background: var(--card);
+        border: 1px solid var(--rule); animation: peel 1.15s ease forwards; }
+@keyframes peel {
+  0% { opacity: 0; transform: translateY(10px); }
+  18% { opacity: 1; transform: none; }
+  62% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-18px); }
+}
+mark { background: transparent; color: inherit; font-weight: 650;
+       box-shadow: inset 0 -0.4em 0 rgba(47, 107, 94, .28); }
+.row.hit { outline: 2px solid var(--patina); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) {
+  .rotor, .arm, .chip { animation: none; }
+}
 .state b { display: block; font-weight: 400; }
 .state em { display: block; font-style: normal; font-size: 11px;
             color: var(--dim); margin-top: 2px; }
@@ -135,6 +165,7 @@ h3.important { color: #b5643d; }
 .finder { display: flex; align-items: center; gap: 10px; margin-bottom: var(--step);
           padding: 0 14px; border-radius: 10px; border: 1px solid var(--rule); background: var(--card); }
 .finder[hidden] { display: none; }
+#dfinder { margin: 0 0 12px; }
 .finder:focus-within { border-color: var(--patina); }
 .fico { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--dim);
         stroke-width: 2; stroke-linecap: round; }
@@ -265,7 +296,7 @@ h3.important { color: #b5643d; }
 .permrow input { width: 15px; height: 15px; accent-color: var(--patina); cursor: pointer; }
 .permrow.granted { border-color: var(--patina); color: var(--patina); }
 .permrow.declined { opacity: .55; }
-.permrow.asking { border-color: var(--amber); color: var(--amber); }
+.permrow.asking { border-color: #b5643d; color: #b5643d; }
 .sheetbar { display: flex; gap: 9px; margin-top: 18px; }
 .sheetbar button { font-size: 14px; padding: 10px 16px; }
 .permlink { background: none; border: none; color: var(--dim); font: inherit;
@@ -334,13 +365,42 @@ h3.important { color: #b5643d; }
   </div>
 
   <div class="loader" id="loader">
-    <svg viewBox="0 0 96 96" class="ring">
-      <circle class="track" cx="48" cy="48" r="36"/>
-      <circle class="arc" id="arc" cx="48" cy="48" r="36"/>
-      <text class="pct" id="pct" x="48" y="48">0%</text>
+    <svg viewBox="0 0 160 160" class="diskart" aria-hidden="true">
+      <circle class="face" cx="80" cy="80" r="70"/>
+      <g class="rotor">
+        <circle cx="80" cy="80" r="56" fill="none" stroke="currentColor" stroke-width="1.25" opacity=".45"/>
+        <circle cx="80" cy="80" r="40" fill="none" stroke="currentColor" stroke-width="1.25" opacity=".4"/>
+        <circle cx="80" cy="80" r="24" fill="none" stroke="currentColor" stroke-width="1.25" opacity=".55"/>
+        <circle cx="80" cy="80" r="56" fill="none" stroke="var(--patina)" stroke-width="7"
+                stroke-linecap="round" stroke-dasharray="36 316" opacity=".9"/>
+      </g>
+      <g class="arm">
+        <path d="M118 16 L94 58" fill="none" stroke="var(--ink)" stroke-width="2.25" stroke-linecap="round"/>
+        <circle cx="94" cy="58" r="3.2" fill="var(--patina)"/>
+      </g>
+      <circle class="hub" cx="80" cy="80" r="18"/>
+      <circle class="track" cx="80" cy="80" r="74"/>
+      <circle class="arc" id="arc" cx="80" cy="80" r="74"/>
+      <text class="pct" id="pct" x="80" y="80">0%</text>
     </svg>
     <p class="loadmsg" id="loadmsg">Scanning</p>
     <p class="loadwhere" id="loadwhere"></p>
+  </div>
+  <div class="reel" id="reel" hidden>
+    <svg viewBox="0 0 160 160" class="diskart settled" aria-hidden="true">
+      <circle class="face" cx="80" cy="80" r="70"/>
+      <g class="rotor">
+        <circle cx="80" cy="80" r="56" fill="none" stroke="currentColor" stroke-width="1.25" opacity=".45"/>
+        <circle cx="80" cy="80" r="40" fill="none" stroke="currentColor" stroke-width="1.25" opacity=".4"/>
+        <circle cx="80" cy="80" r="24" fill="none" stroke="currentColor" stroke-width="1.25" opacity=".55"/>
+        <circle cx="80" cy="80" r="56" fill="none" stroke="var(--patina)" stroke-width="7"
+                stroke-linecap="round" stroke-dasharray="36 316" opacity=".9"/>
+      </g>
+      <circle class="hub" cx="80" cy="80" r="18"/>
+    </svg>
+    <p class="reelbig" id="reelbig">0 MB</p>
+    <p class="reelsub" id="reelsub"></p>
+    <div class="reellist" id="reellist"></div>
   </div>
 
   <div class="finder" id="finder" hidden>
@@ -348,7 +408,7 @@ h3.important { color: #b5643d; }
       <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
     </svg>
     <input id="find" type="search" autocomplete="off" spellcheck="false"
-           placeholder="Search apps, caches and leftovers by name">
+           placeholder="Search by name. ↑↓ moves, Enter ticks">
     <button class="fclear" id="fclear" type="button" title="Clear" hidden>&times;</button>
     <span class="fcount" id="fcount"></span>
   </div>
@@ -397,6 +457,10 @@ h3.important { color: #b5643d; }
     <div>
       <div class="roots" id="roots"></div>
       <div class="crumbs" id="crumbs"></div>
+      <div class="finder" id="dfinder">
+        <input id="dfind" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Filter this folder by name">
+      </div>
       <div id="flist"></div>
     </div>
     <div class="panel">
@@ -439,6 +503,24 @@ const T = () => WIN ? "Recycle Bin" : "Trash";
 const TOP = 3;                       // caches shown before "View more"
 let moreCaches = false;
 let query = "";                      // what is typed in the search box
+let cursor = -1;                     // which search row the arrow keys are on
+let diskQuery = "";
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function mark(text, q) {
+  const raw = String(text ?? "");
+  const needle = q.trim();
+  if (!needle) return esc(raw);
+  const at = raw.toLowerCase().indexOf(needle.toLowerCase());
+  if (at < 0) return esc(raw);
+  return esc(raw.slice(0, at)) + "<mark>" + esc(raw.slice(at, at + needle.length))
+    + "</mark>" + esc(raw.slice(at + needle.length));
+}
 
 function note(t) { $("#note").textContent = t; }
 const byPath = p => rows.find(r => r.path === p);
@@ -454,7 +536,7 @@ const meta = (list) => list.length ? `${list.length} item${list.length === 1 ? "
 
 // ---------------------------------------------------------------- progress ring
 
-const CIRC = 226.2;
+const CIRC = 464.96;          // 2π × 74, the groove on the spinning disk
 let poller = null, frame = null, shown = 0, target = 0;
 
 function paint() {
@@ -512,6 +594,7 @@ function busy(on, message, label) {
 async function scan() {
   busy(true, "Scanning your disk. This takes a few minutes.", "Scanning");
   $("#out").hidden = true;
+  $("#finder").hidden = true;
   try {
     await fetch("/api/scan");
     let misses = 0;
@@ -540,6 +623,7 @@ async function scan() {
     draw();
   } catch (e) {
     busy(false);
+    if (rows.length) { $("#finder").hidden = false; $("#out").hidden = false; }
     note("The scan stopped: " + (e.message || e) + ". Try again.");
   }
   loadBin();
@@ -620,6 +704,7 @@ function rowsFor(kind, list, biggest, limit) {
   if (!list.length) return `<div class="empty">Nothing here.</div>`;
   let out = "";
   const hidden = limit && list.length > limit ? list.length - limit : 0;
+  const hot = cursor >= 0 && visible()[cursor] ? visible()[cursor].path : "";
   // Big ones first, then anything too small for a drawer of its own under a
   // line that says so, so a search result is never mistaken for a big find.
   let marked = false;
@@ -636,11 +721,11 @@ function rowsFor(kind, list, biggest, limit) {
     const tag = kind === "app" ? "app" : kind === "cache" ? "cache"
               : kind === "log" ? "log" : kind === "installer" ? "installer" : "app data";
     out += `
-      <div class="row ${state} ${kind} ${r.level}${r.small ? " small" : ""}">
+      <div class="row ${state} ${kind} ${r.level}${r.small ? " small" : ""}${r.path === hot ? " hit" : ""}">
         <span class="fill" style="width:${w}%"></span>
-        <button class="peek" type="button" data-peek="${r.path}" title="See what is inside"><span>\u203a</span></button>
-        <input type="checkbox" data-path="${r.path}" ${chosen.has(r.path) ? "checked" : ""}>
-        <span class="who"><b>${r.name}<span class="tag">${tag}</span></b><em>${r.where}${r.why ? " · " + r.why : ""}</em></span>
+        <button class="peek" type="button" data-peek="${esc(r.path)}" title="See what is inside"><span>\u203a</span></button>
+        <input type="checkbox" data-path="${esc(r.path)}" ${chosen.has(r.path) ? "checked" : ""}>
+        <span class="who"><b>${mark(r.name, query)}<span class="tag">${tag}</span></b><em>${mark(r.where, query)}${r.why ? " · " + esc(r.why) : ""}</em></span>
         <span class="num">${size(r.mb)}</span>
         <span class="age">${age}</span>
         <span class="state"><b>${r.change}</b><em>${r.when || ""}</em></span>
@@ -663,7 +748,7 @@ function drawFinder(shownRows, searching) {
   const big = rows.filter(r => !r.small).length;
   const extra = shownRows.filter(r => r.small).length;
   $("#fcount").textContent = searching
-    ? `${shownRows.length} of ${rows.length}` + (extra ? ` · ${extra} small` : "")
+    ? `${shownRows.length} · ${size(mb(shownRows))}` + (extra ? ` · ${extra} small` : "")
     : `${big} item${big === 1 ? "" : "s"}`;
 }
 
@@ -672,12 +757,24 @@ function drawFinder(shownRows, searching) {
 // because a search that cannot reach a 2 MB app is no use.
 function visible() {
   const q = query.trim().toLowerCase();
-  if (!q) return rows.filter(r => !r.small);
-  return rows.filter(r =>
-    (r.name || "").toLowerCase().includes(q) ||
-    (r.where || "").toLowerCase().includes(q) ||
-    (r.kind || "").toLowerCase().includes(q) ||
-    (r.why || "").toLowerCase().includes(q));
+  const base = rows.filter(r => {
+    if (!q) return !r.small;
+    return (r.name || "").toLowerCase().includes(q) ||
+      (r.where || "").toLowerCase().includes(q) ||
+      (r.kind || "").toLowerCase().includes(q) ||
+      (r.why || "").toLowerCase().includes(q);
+  });
+  if (!q) return base;
+  // A name that starts with what you typed beats a bigger folder that only
+  // mentions it in the small print.
+  const rank = r => {
+    const name = (r.name || "").toLowerCase();
+    if (name.startsWith(q)) return 0;
+    if (name.includes(q)) return 1;
+    if ((r.where || "").toLowerCase().includes(q)) return 2;
+    return 3;
+  };
+  return base.slice().sort((a, b) => rank(a) - rank(b) || b.mb - a.mb);
 }
 
 function draw() {
@@ -694,14 +791,6 @@ function draw() {
   const important = data.filter(r => r.level === "important");
 
   drawFinder(shownRows, searching);
-
-  note(searching
-    ? (shownRows.length
-        ? `${shownRows.length} match${shownRows.length === 1 ? "" : "es"} for "${query.trim()}", ${size(mb(shownRows))} in total.`
-        : `Nothing called "${query.trim()}". Skurra searched ${rows.length} measured items.`)
-    : rows.length
-    ? `${size(mb(cache))} of caches, ${size(mb(safe))} of app data safe to remove, ${size(mb(less))} worth a look. ${apps.length} apps installed.`
-    : "Nothing found. Lower the numbers at the top of app.py.");
 
   $("#meta-cache").textContent = meta(cache);
   $("#meta-data").textContent = data.length
@@ -775,6 +864,8 @@ function draw() {
   }
   $("#pick").disabled = !safe.length;
   refresh();
+  const hit = document.querySelector(".row.hit");
+  if (hit) hit.scrollIntoView({ block: "nearest" });
 }
 
 function refresh() {
@@ -803,18 +894,112 @@ function refresh() {
       draw();
     };
   }
+  speak();
+}
+
+// One sentence about what to do next. A ticked row replaces it with the
+// exact action those ticks will take, so the number on the button and the
+// sentence stay the same thing.
+function speak() {
+  const q = query.trim();
+  const shownRows = visible();
+  const selC = picked(["cache", "log"]);
+  const selT = picked(["app", "idle", "installer"]);
+  if (!q && (selC.length || selT.length)) {
+    const bits = [];
+    if (selC.length) bits.push(`Clear caches removes ${selC.length} (${size(mb(selC))}), on the spot`);
+    if (selT.length) bits.push(`Move to the ${T()} takes ${selT.length} (${size(mb(selT))})`);
+    note(bits.join(". ") + ".");
+    return;
+  }
+  if (q) {
+    note(shownRows.length
+      ? `${shownRows.length} match${shownRows.length === 1 ? "" : "es"} · ${size(mb(shownRows))}. ↑↓ moves, Enter ticks.`
+      : `Nothing called "${q}". I looked through ${rows.length} measured items.`);
+    return;
+  }
+  if (!rows.length) {
+    note("Press Scan. I will measure caches, leftovers and apps, then tell you what I can remove.");
+    return;
+  }
+  const cache = shownRows.filter(r => r.kind === "cache" || r.kind === "log");
+  const safe = shownRows.filter(r => r.kind === "idle" && r.level === "safe");
+  const less = shownRows.filter(r => r.kind === "idle" && r.level === "less");
+  const bits = [];
+  if (mb(cache) >= 1) bits.push(`${size(mb(cache))} of caches I can clear`);
+  if (mb(safe) >= 1) bits.push(`${size(mb(safe))} safe to remove`);
+  if (!bits.length && mb(less) >= 1) bits.push(`${size(mb(less))} worth a look before you remove it`);
+  note(bits.length
+    ? "I found " + bits.join(", and ") + "."
+    : "Nothing large enough to clear. Search if you are looking for something small.");
 }
 
 function report(res, verb) {
   let msg = `${verb} ${res.done} of ${res.asked}.`;
   if (res.partly && res.partly.length)
     msg += ` ${res.partly.join(", ")} ${res.partly.length === 1 ? "was" : "were"} only partly cleared — some files are open right now. Quit that app and scan again for the rest.`;
-  if (res.failed.length) msg += ` Could not touch ${res.failed.join(", ")}. Quit it first, then try again.`;
+  if (res.failed && res.failed.length) msg += ` Could not touch ${res.failed.join(", ")}. Quit it first, then try again.`;
   note(msg);
-  $("#warn").textContent = res.refused.length
+  $("#warn").textContent = res.refused && res.refused.length
     ? "Skurra refused " + res.refused.map(r => `${r.name} (${r.why})`).join(", ")
     : "";
   loadLog();
+}
+
+function freedItems(items, res) {
+  const failed = new Set((res && res.failed) || []);
+  const refused = new Set(((res && res.refused) || []).map(r => r.name));
+  return (items || []).filter(i => i && !failed.has(i.name) && !refused.has(i.name));
+}
+
+// The disk slows down and each thing that actually went peels off, with the
+// space counting up. Nothing plays when the server cleared nothing.
+function celebrate(items, headline) {
+  const gone = (items || []).filter(Boolean);
+  if (!gone.length) return Promise.resolve();
+  const total = gone.reduce((a, i) => a + (Number(i.mb) || 0), 0);
+  const shown = gone.slice(0, 6);
+  const extra = gone.length - shown.length;
+  const list = $("#reellist");
+  list.innerHTML = "";
+  shown.forEach((it, n) => {
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.style.animationDelay = (n * 0.12) + "s";
+    chip.textContent = `${it.name}${it.mb ? " · " + size(it.mb) : ""}`;
+    list.appendChild(chip);
+  });
+  if (extra > 0) {
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.style.animationDelay = (shown.length * 0.12) + "s";
+    chip.textContent = `+ ${extra} more`;
+    list.appendChild(chip);
+  }
+  $("#reelbig").textContent = total > 0 ? "0 MB" : "Gone";
+  $("#reelsub").textContent = headline;
+  $("#loader").classList.remove("on");
+  watch(false);
+  $("#scan").disabled = true;
+  $("#reel").hidden = false;
+  note(headline);
+  const t0 = performance.now();
+  const dur = 900;
+  return new Promise(done => {
+    function tick(now) {
+      const k = Math.min(1, (now - t0) / dur);
+      const eased = 1 - Math.pow(1 - k, 3);
+      if (total > 0) $("#reelbig").textContent = size(total * eased);
+      if (k < 1) requestAnimationFrame(tick);
+    }
+    if (total > 0) requestAnimationFrame(tick);
+    const wait = Math.max(2400, 1000 + shown.length * 180);
+    setTimeout(() => {
+      $("#reel").hidden = true;
+      $("#scan").disabled = false;
+      done();
+    }, wait);
+  });
 }
 
 // ---------------------------------------------------------------- disk space
@@ -893,7 +1078,9 @@ function drawDisk(data) {
     `${n ? '<span>\u203a</span>' : ''}<button type="button" data-p="${c.path}">${c.name}</button>`).join("");
   for (const b of $("#crumbs").querySelectorAll("button")) b.onclick = () => openDir(b.dataset.p);
 
-  const biggest = data.items.length ? Math.max(...data.items.map(i => i.mb)) : 1;
+  const q = diskQuery.trim().toLowerCase();
+  const shown = q ? data.items.filter(i => (i.name || "").toLowerCase().includes(q)) : data.items;
+  const biggest = shown.length ? Math.max(...shown.map(i => i.mb)) : 1;
   if (data.error) {
     $("#flist").innerHTML = `<div class="empty2">${data.error}.<br>
       To let Skurra look in here: <b>System Settings \u2192 Privacy &amp; Security \u2192 Files and Folders</b>,
@@ -905,19 +1092,19 @@ function drawDisk(data) {
     refreshDisk();
     return;
   }
-  $("#flist").innerHTML = data.items.length ? data.items.map(i => {
+  $("#flist").innerHTML = shown.length ? shown.map(i => {
     const c = KIND_COLOUR[i.dir ? "folder" : i.kind];
     const w = Math.max(2, Math.round(i.mb / biggest * 100));
     const age = i.days === 0 ? "today" : i.days === 1 ? "yesterday" : i.days + " days ago";
     return `<div class="frow ${i.dir ? "isdir" : ""}">
       <span class="fill" style="width:${w}%;background:${c}"></span>
-      <input type="checkbox" data-path="${i.path}" ${dpick.has(i.path) ? "checked" : ""}>
-      <span class="nm" data-go="${i.dir ? i.path : ""}"><i class="dot2" style="background:${c}"></i>
-        <b>${i.name}</b>${i.dir ? `<em style="font-style:normal;color:var(--dim);font-size:12px">${i.files} files</em>` : ""}</span>
+      <input type="checkbox" data-path="${esc(i.path)}" ${dpick.has(i.path) ? "checked" : ""}>
+      <span class="nm" data-go="${i.dir ? esc(i.path) : ""}"><i class="dot2" style="background:${c}"></i>
+        <b>${mark(i.name, diskQuery)}</b>${i.dir ? `<em style="font-style:normal;color:var(--dim);font-size:12px">${i.files} files</em>` : ""}</span>
       <span class="sz">${i.approx ? "<i>over</i> " : ""}${size(i.mb)}</span>
       <span class="ag">${age}</span>
     </div>`;
-  }).join("") : `<div class="empty2">${data.error ? "Could not read this folder: " + data.error : "Nothing in here."}</div>`;
+  }).join("") : `<div class="empty2">${q ? `Nothing in this folder is called "${esc(diskQuery.trim())}".` : "Nothing in here."}</div>`;
 
   for (const nm of $("#flist").querySelectorAll(".nm[data-go]")) {
     if (nm.dataset.go) nm.onclick = () => openDir(nm.dataset.go);
@@ -930,6 +1117,9 @@ function drawDisk(data) {
 }
 
 async function openDir(path) {
+  diskQuery = "";
+  const box = $("#dfind");
+  if (box) box.value = "";
   busy(true, "Measuring this folder. Big ones take a moment.", "Measuring");
   // One retry: a Skurra that was just replaced can miss the first request.
   for (const attempt of [1, 2]) {
@@ -1006,9 +1196,51 @@ for (const b of document.querySelectorAll(".view")) {
 
 // ---------------------------------------------------------------- searching
 
-$("#find").oninput = () => { query = $("#find").value; draw(); };
-$("#find").onkeydown = e => { if (e.key === "Escape") clearFind(); };
+$("#find").oninput = () => { query = $("#find").value; cursor = -1; draw(); };
+$("#find").onkeydown = e => {
+  const list = visible();
+  if (e.key === "Escape") { clearFind(); return; }
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    cursor = Math.min(list.length - 1, cursor + 1);
+    draw();
+    return;
+  }
+  if (e.key === "ArrowUp") {
+    e.preventDefault();
+    cursor = cursor <= 0 ? 0 : cursor - 1;
+    draw();
+    return;
+  }
+  if (e.key === "Enter" && query.trim() && list.length) {
+    e.preventDefault();
+    const r = list[cursor >= 0 ? cursor : 0];
+    if (!r) return;
+    chosen.has(r.path) ? chosen.delete(r.path) : chosen.add(r.path);
+    if (cursor < 0) cursor = 0;
+    draw();
+  }
+};
+document.addEventListener("keydown", e => {
+  if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  if (view !== "clean" || $("#finder").hidden) return;
+  e.preventDefault();
+  $("#find").focus();
+});
 $("#fclear").onclick = clearFind;
+$("#dfind").oninput = () => {
+  diskQuery = $("#dfind").value;
+  if (here) drawDisk(here);
+};
+$("#dfind").onkeydown = e => {
+  if (e.key === "Escape") {
+    diskQuery = "";
+    $("#dfind").value = "";
+    if (here) drawDisk(here);
+  }
+};
 
 function clearFind() {
   query = "";
@@ -1048,6 +1280,7 @@ $("#trash").onclick = async () => {
   busy(true, `Moving to ${T()}.`, `Moving to ${T()}`);
   try {
     const res = await runJob("/api/trash", items, true);
+    await celebrate(freedItems(items, res), WIN && apps ? "Removed" : `Moved to the ${T()}`);
     await scan();
     report(res, WIN && apps ? "Removed:" : `Moved to the ${T()}:`);
   } catch (e) {
@@ -1062,7 +1295,7 @@ $("#trash").onclick = async () => {
 // read that as failure while the delete ran happily on.
 async function runJob(url, body, label) {
   const begun = await (await fetch(url, { method: "POST", body: JSON.stringify(body) })).json();
-  if (begun.started === false && !begun.running) throw new Error("Skurra is busy with something else");
+  if (!begun.started) throw new Error("Skurra is busy with something else");
   let misses = 0;
   while (true) {
     await new Promise(r => setTimeout(r, 500));
@@ -1077,6 +1310,7 @@ async function runJob(url, body, label) {
     if (j.total) target = Math.min(99, j.done / j.total * 100);
     if (j.where && label) $("#loadwhere").textContent = j.where;
     if (!j.running) {
+      if (!j.ready) continue;
       if (j.error) throw new Error(j.error);
       break;
     }
@@ -1095,6 +1329,7 @@ async function trashFiles() {
   try {
     const res = await runJob("/api/trash", items.map(i => ({ ...i, kind: "file" })), true);
     dpick.clear();
+    await celebrate(freedItems(items, res), `Moved to the ${where}`);
     const d = await (await fetch("/api/explore?path=" + encodeURIComponent(here.path))).json();
     await finish(); busy(false);
     drawDisk(d);
@@ -1118,6 +1353,7 @@ $("#clear").onclick = async () => {
   busy(true, "Clearing caches.", "Clearing");
   try {
     const res = await runJob("/api/clear", items, true);
+    await celebrate(freedItems(items, res), "Cleared");
     await scan();
     report(res, "Cleared:");
   } catch (e) {
@@ -1133,8 +1369,10 @@ $("#binpick").onclick = async () => {
   note(`Deleting ${names.length} item${names.length === 1 ? "" : "s"}.`);
   try {
     const res = await runJob("/api/binremove", names, false);
+    const failed = new Set(res.failed || []);
+    await celebrate(names.filter(n => !failed.has(n)).map(n => ({ name: n, mb: 0 })), "Deleted for good");
     note(`Deleted ${res.done} of ${res.asked} for good.`
-      + (res.failed.length ? ` Could not delete ${res.failed.join(", ")}.` : ""));
+      + (res.failed && res.failed.length ? ` Could not delete ${res.failed.join(", ")}.` : ""));
     loadLog();
   } catch (e) {
     note(`Could not finish deleting: ${e.message || e}. Check the ${T()} yourself.`);
@@ -1149,6 +1387,7 @@ $("#empty").onclick = async () => {
   note(`Emptying the ${T()}.`);
   try {
     const res = await runJob("/api/empty", {}, false);
+    if (res.ok) await celebrate([{ name: "Everything in the " + T(), mb: 0 }], `${T()} emptied`);
     note(res.ok ? `${T()} emptied. The space is yours again.` : `Could not empty the ${T()}. Try it from the ${WIN ? "desktop" : "Finder"}.`);
     loadLog();
   } catch (e) {
@@ -1320,21 +1559,32 @@ $("#permall").onclick = async () => {
   if (!wanted.length) { closeSheet(); return; }
 
   $("#permall").disabled = true;
-  $("#permskip").disabled = true;
+  let waiting = false;
   for (const f of wanted) {
     const n = perms.indexOf(f);
     const chip = $(`.permrow[data-n="${n}"]`);
     if (chip) chip.className = "permrow asking";
-    $("#permnow").textContent = `Your Mac is asking about ${f.name}\u2026`;
+    $("#permnow").textContent = `Your Mac is asking about ${f.name}. The question may be behind this window.`;
     try {
       const r = await (await fetch("/api/permission-ask",
         { method: "POST", body: JSON.stringify({ path: f.path }) })).json();
+      if (r.pending) {
+        waiting = true;
+        f.state = "unknown";
+        drawPerms();
+        $("#permnow").textContent = `Your Mac is still asking about ${f.name}. Answer that question, then press Allow selected again.`;
+        break;
+      }
       f.state = r.ok ? "granted" : "declined";
-    } catch (e) { f.state = "declined"; }
+    } catch (e) {
+      waiting = true;
+      $("#permnow").textContent = `Still waiting on ${f.name}. Answer your Mac if it asked, then press Allow selected again.`;
+      break;
+    }
     drawPerms();
   }
   $("#permall").disabled = false;
-  $("#permskip").disabled = false;
+  if (waiting) return;
   const yes = perms.filter(f => f.state === "granted").length;
   $("#permnow").textContent = yes
     ? `Skurra can see ${yes} folder${yes === 1 ? "" : "s"}. You can close this.`
@@ -1344,6 +1594,7 @@ $("#permall").onclick = async () => {
 
 $("#permlink").onclick = () => loadPerms(true);
 
+speak();
 checkUpdate().then(loadBin).catch(() => {});
 loadPerms(false).catch(() => {});
 lastUpdateReport().catch(() => {});      // know which OS we are on before wording the bin

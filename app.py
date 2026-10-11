@@ -1470,9 +1470,26 @@ def ask_permission(path):
     """Touch the folder so the system puts its dialog up, and wait for an answer.
 
     The dialog belongs to the system, not to us: all we can do is knock and
-    give the person time to answer.
+    give the person time to answer. A dialog that is still on screen is not a
+    no. Recording that timeout as declined is how Allow selected walked on to
+    the next folder while the first question was still waiting.
     """
-    got = without_hanging(lambda: os.listdir(path), 45) is not None
+    outcome = {}
+
+    def run():
+        try:
+            os.listdir(path)
+            outcome["got"] = True
+        except OSError:
+            outcome["got"] = False
+
+    waiter = threading.Thread(target=run, daemon=True)
+    waiter.start()
+    waiter.join(45)
+    if "got" not in outcome:
+        return {"ok": False, "pending": True}
+
+    got = outcome["got"]
     if got:                                   # they said yes: forget we ever failed
         known = load_guarded()
         for gone in [g for g in known if g == str(path) or g.startswith(str(path) + os.sep)]:
@@ -1483,7 +1500,7 @@ def ask_permission(path):
     state["asked"] = True
     state["version"] = VERSION
     save_perms(state)
-    return got
+    return {"ok": got}
 
 
 def open_privacy_settings():
@@ -2045,7 +2062,7 @@ class Handler(SimpleHTTPRequestHandler):
             if not (want == str(HOME) or inside_home(want)):
                 self.reply({"ok": False})
                 return
-            self.reply({"ok": ask_permission(want)})
+            self.reply(ask_permission(want))
             return
 
         if self.path == "/api/permissions-done":
