@@ -19,8 +19,8 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #191d1e; --card: #232829; --ink: #e9eeec;
-    --dim: #8d9794; --rule: #333a3b; --patina: #6bbfa8;
+    --paper: #101416; --card: #1b2123; --ink: #f4f7f6;
+    --dim: #9aa39f; --rule: #2e3638; --patina: #2fce86;
   }
 }
 
@@ -34,87 +34,149 @@ body {
 main { max-width: 700px; margin: 0 auto; transition: max-width .25s ease; }
 body.wide main { max-width: 1120px; }
 @media (max-width: 1180px) { body.wide main { max-width: 100%; } }
-h1 { margin: 0; font-size: 29px; font-weight: 600; letter-spacing: -0.02em; }
+h1 { margin: 0; font-size: 28px; font-weight: 650; letter-spacing: -0.035em; }
 .note { margin: 6px 0 var(--step); color: var(--dim); font-size: 14px; }
 h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 .sub { color: var(--dim); font-size: 13px; margin: 0 0 12px; }
 @keyframes shimmer { to { background-position: 340px 0; } }
 .stage {
   position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
-  padding: 32px 20px; background: var(--paper);
+  padding: 32px 20px; color: #f4f7f6;
+  background: radial-gradient(80% 60% at 50% 38%, #1c2428 0%, #101416 72%);
   animation: rise .35s ease;
 }
 .stage[hidden] { display: none; }
-.stagein { width: min(520px, 100%); text-align: center; }
-.scene { height: 340px; display: none; position: relative; }
+.stage[data-mode="complete"],
+.stage[data-mode="done"] {
+  background: radial-gradient(90% 80% at 18% 42%, #4ea85a 0%, #1f7a38 46%, #0d3f22 100%);
+}
+.stagein { width: min(560px, 100%); text-align: center; }
+.scene { height: 360px; display: none; position: relative; }
 .stage[data-mode="scan"] .scene-scan,
 .stage[data-mode="clean"] .scene-clean,
 .stage[data-mode="empty"] .scene-empty,
-.stage[data-mode="rocket"] .scene-rocket,
+.stage[data-mode="complete"] .scene-rocket,
 .stage[data-mode="done"] .scene-done { display: block; }
-.gauge { width: 250px; height: 250px; margin: 10px auto 0; position: relative; }
+.gauge { width: min(340px, 78vw); height: min(340px, 78vw); margin: 8px auto 0; position: relative; }
 .gauge svg { width: 100%; height: 100%; display: block; }
-.gaugetrack { fill: none; stroke: var(--rule); stroke-width: 14; }
-.gaugearc {
-  fill: none; stroke: var(--patina); stroke-width: 14; stroke-linecap: round;
+.gaugeglow, .gaugearc {
+  fill: none; stroke: url(#ringg); stroke-linecap: round;
   stroke-dasharray: 578.05; stroke-dashoffset: 578.05;
   transform: rotate(-90deg); transform-origin: 110px 110px;
 }
+.gaugeglow { stroke-width: 22; opacity: .85; filter: url(#bloom); }
+.gaugearc { stroke-width: 11; }
+#ticks line { stroke: rgba(255,255,255,.22); stroke-width: 1.7; stroke-linecap: butt; }
+#ticks line.on { stroke: #d8ff55; }
 .gaugen { position: absolute; inset: 0; display: grid; place-items: center; }
-.gaugen b { font-size: 52px; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
-.handart {
-  position: absolute; width: 280px; height: 210px; right: -28px; bottom: 8px;
-  filter: drop-shadow(0 12px 16px rgba(0,0,0,.22));
-  animation: look 3s ease-in-out infinite;
-  pointer-events: none;
+.gaugen b {
+  font-size: 64px; font-weight: 700; letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums; color: #39f56a;
+  text-shadow: 0 0 22px rgba(57, 245, 106, .45);
 }
-.brushart, .binart, .rocketart { width: min(460px, 100%); height: 280px; display: block; margin: 0 auto; }
-.brush { transform-origin: 70% 60%; animation: dusting 1.7s ease-in-out infinite; }
+.brushart, .binart { width: min(520px, 100%); height: 320px; display: block; margin: 0 auto; }
+.rocketart { width: min(280px, 70vw); height: 340px; display: block; margin: 0 auto; filter: drop-shadow(0 18px 24px rgba(0,0,0,.28)); }
+.brush { transform-origin: 78% 28%; animation: dusting 1.6s ease-in-out infinite; }
 .ash { animation: ash 1.5s ease-in infinite; }
-.ash.d2 { animation-delay: .3s; }
-.ash.d3 { animation-delay: .6s; }
-.ash.d4 { animation-delay: .9s; }
-.spark { animation: twinkle 1.4s ease-in-out infinite; }
-.rocket { animation: launch 2.2s cubic-bezier(.16,.8,.28,1) forwards; }
-.flame { transform-origin: 210px 214px; animation: flicker .18s ease-in-out infinite; }
-.drop { animation: dump 1.5s ease-in infinite; }
-.drop.d2 { animation-delay: .25s; }
-.drop.d3 { animation-delay: .5s; }
-.stagetitle { margin: 18px 0 0; font-size: 28px; font-weight: 600; letter-spacing: -0.03em; }
-.stagesub { margin: 6px 0 0; color: var(--dim); font-size: 14px; min-height: 21px;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.reelbig { margin: 10px 0 0; font-size: 42px; font-weight: 600; letter-spacing: -0.03em; }
-.reellist { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 34px; margin-top: 14px; }
-.stage:not([data-mode="done"]):not([data-mode="rocket"]) .reelbig,
-.stage:not([data-mode="done"]):not([data-mode="rocket"]) .reellist { display: none; }
-.check { width: 84px; height: 84px; margin: 70px auto 0; border-radius: 50%;
-         border: 3px solid var(--patina); color: var(--patina);
-         display: grid; place-items: center; font-size: 40px; line-height: 1; }
-@keyframes rise { from { opacity: 0; } }
-@keyframes look {
-  0%, 100% { transform: translate(0, 0) rotate(-6deg); }
-  50% { transform: translate(-14px, 8px) rotate(4deg); }
+.ash.d2 { animation-delay: .28s; }
+.ash.d3 { animation-delay: .55s; }
+.ash.d4 { animation-delay: .82s; }
+.rocket { animation: launch 2.4s cubic-bezier(.16,.8,.28,1) forwards; }
+.flame { transform-origin: 140px 292px; animation: flicker .16s ease-in-out infinite; }
+.lid { transform-box: view-box; transform-origin: 286px 128px; animation: openlid 1.8s ease-in-out infinite; }
+.paper { animation: dump 1.25s ease-in infinite; }
+.paper.d2 { animation-delay: .28s; }
+.paper.d3 { animation-delay: .55s; }
+.paper.d4 { animation-delay: .8s; }
+.orb {
+  width: 210px; height: 210px; margin: 40px auto 0; border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,.55), transparent 36%),
+    radial-gradient(circle at 50% 58%, #b7f0c4 0%, #3ecf67 42%, #149447 100%);
+  box-shadow: inset 0 -18px 30px rgba(0,40,20,.28), 0 24px 50px rgba(0,0,0,.22);
+  display: grid; place-items: center; color: #fff; font-size: 84px; line-height: 1;
 }
+.stagetitle { margin: 18px 0 0; font-size: 32px; font-weight: 650; letter-spacing: -0.03em; }
+.stagesub { margin: 6px 0 0; color: rgba(244,247,246,.62); font-size: 15px; min-height: 22px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reelbig { margin: 8px 0 0; font-size: 40px; font-weight: 650; letter-spacing: -0.03em; }
+.reellist { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 0; margin-top: 14px; }
+.stage:not([data-mode="done"]):not([data-mode="complete"]) .reelbig,
+.stage:not([data-mode="done"]) .reellist,
+.stagedone { display: none; }
+.stage[data-mode="complete"] .stagedone,
+.stage[data-mode="done"] .stagedone {
+  display: inline-flex; margin-top: 22px;
+  background: #fff; color: #14301c; border: 0; border-radius: 12px;
+  padding: 10px 22px; font-weight: 600;
+}
+.stage[data-mode="complete"] .stagein,
+.stage[data-mode="done"] .stagein {
+  width: min(820px, 100%);
+  display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: 8px 36px; align-items: center; text-align: left;
+  padding: 42px 48px 36px; border-radius: 28px;
+  background: linear-gradient(160deg, rgba(255,255,255,.20), rgba(255,255,255,.06));
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow: 0 30px 80px rgba(0,0,0,.22);
+}
+.stage[data-mode="complete"] .scene,
+.stage[data-mode="done"] .scene { grid-column: 1; grid-row: 1 / span 5; height: 320px; margin: 0; }
+.stage[data-mode="complete"] .stagetitle,
+.stage[data-mode="done"] .stagetitle { grid-column: 2; margin: 0; font-size: 40px; align-self: end; }
+.stage[data-mode="complete"] .reelbig,
+.stage[data-mode="done"] .reelbig { grid-column: 2; margin: 0; font-size: 28px; }
+.stage[data-mode="complete"] .stagesub,
+.stage[data-mode="done"] .stagesub { grid-column: 2; color: rgba(255,255,255,.84); white-space: normal; }
+.stage[data-mode="done"] .reellist { grid-column: 2; justify-content: flex-start; }
+.stage[data-mode="complete"] .stagedone,
+.stage[data-mode="done"] .stagedone { grid-column: 2; justify-self: end; margin-top: 8px; }
+@media (max-width: 720px) {
+  .stage[data-mode="complete"] .stagein,
+  .stage[data-mode="done"] .stagein { grid-template-columns: 1fr; text-align: center; padding: 28px 20px; }
+  .stage[data-mode="complete"] .scene,
+  .stage[data-mode="done"] .scene,
+  .stage[data-mode="complete"] .stagetitle,
+  .stage[data-mode="done"] .stagetitle,
+  .stage[data-mode="complete"] .reelbig,
+  .stage[data-mode="done"] .reelbig,
+  .stage[data-mode="complete"] .stagesub,
+  .stage[data-mode="done"] .stagesub,
+  .stage[data-mode="done"] .reellist,
+  .stage[data-mode="complete"] .stagedone,
+  .stage[data-mode="done"] .stagedone { grid-column: 1; grid-row: auto; }
+  .stage[data-mode="done"] .reellist { justify-content: center; }
+  .stage[data-mode="complete"] .stagedone,
+  .stage[data-mode="done"] .stagedone { justify-self: center; }
+}
+@keyframes rise { from { opacity: 0; } }
 @keyframes dusting {
-  0%, 100% { transform: translateX(-8px) rotate(-8deg); }
-  50% { transform: translateX(28px) rotate(6deg); }
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(7deg); }
 }
 @keyframes ash {
   0% { transform: translate(0, 0); opacity: 0; }
   20% { opacity: .85; }
   100% { transform: translate(-10px, 54px); opacity: 0; }
 }
-@keyframes twinkle { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 @keyframes launch {
-  0% { transform: translateY(80px); opacity: 0; }
-  18% { opacity: 1; }
-  100% { transform: translateY(-36px); opacity: 1; }
+  0% { transform: translateY(70px); opacity: 0; }
+  16% { opacity: 1; }
+  100% { transform: translateY(-18px); opacity: 1; }
+}
+@keyframes discup {
+  from { transform: scale(.78); opacity: .35; }
+  to { transform: scale(1); opacity: 1; }
 }
 @keyframes flicker { 50% { transform: scaleY(.75); } }
+@keyframes openlid {
+  0%, 12%, 100% { transform: rotate(0deg); }
+  38%, 72% { transform: rotate(-38deg); }
+}
 @keyframes dump {
-  0% { transform: translateY(0); opacity: 0; }
-  15% { opacity: 1; }
-  100% { transform: translateY(70px); opacity: 0; }
+  0% { transform: translateY(-8px) rotate(-8deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translateY(78px) rotate(12deg); opacity: 0; }
 }
 .chip { font-size: 13px; padding: 6px 12px; border-radius: 99px; background: var(--card);
         border: 1px solid var(--rule); animation: peel 1.15s ease forwards; }
@@ -128,15 +190,15 @@ mark { background: transparent; color: inherit; font-weight: 650;
        box-shadow: inset 0 -0.4em 0 rgba(47, 107, 94, .28); }
 .row.hit { outline: 2px solid var(--patina); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
-  .handart, .brush, .ash, .spark, .rocket, .flame, .drop, .chip, .stage { animation: none; }
+  .brush, .ash, .rocket, .flame, .lid, .paper, .chip, .stage, .sun.rise { animation: none; }
 }
 .state b { display: block; font-weight: 400; }
 .state em { display: block; font-style: normal; font-size: 11px;
             color: var(--dim); margin-top: 2px; }
 
 button {
-  font: inherit; font-size: 14px; cursor: pointer;
-  border-radius: 8px; padding: 9px 18px;
+  font: inherit; font-size: 14px; font-weight: 550; letter-spacing: -0.01em; cursor: pointer;
+  border-radius: 10px; padding: 9px 16px;
   border: 1px solid var(--rule); background: var(--card); color: var(--ink);
 }
 button:hover:not(:disabled) { border-color: var(--patina); }
@@ -157,8 +219,9 @@ button.go { background: var(--patina); border-color: var(--patina); color: var(-
 
 .row {
   position: relative; display: flex; align-items: center; gap: 14px;
-  padding: 14px 16px; margin-bottom: 5px;
-  background: var(--card); border-radius: var(--round); overflow: hidden;
+  padding: 13px 16px; margin-bottom: 6px;
+  background: var(--card); border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.04);
 }
 .fill { position: absolute; inset: 0 auto 0 0; background: var(--dim); opacity: 0.07; }
 .row.unchanged .fill { background: var(--patina); opacity: 0.11; }
@@ -171,8 +234,8 @@ button.go { background: var(--patina); border-color: var(--patina); color: var(-
 .age { color: var(--dim); font-size: 13px; width: 88px; text-align: right; white-space: nowrap; }
 .state { font-size: 12px; color: var(--dim); width: 96px; text-align: right; }
 .row.unchanged .state { color: var(--patina); font-weight: 500; }
-.box { margin-top: 12px; background: var(--card); border-radius: var(--round);
-       border: 1px solid var(--rule); }
+.box { margin-top: 12px; background: var(--card); border-radius: 14px;
+       border: 1px solid var(--rule); box-shadow: 0 10px 28px rgba(0,0,0,.12); }
 .box summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
   padding: 14px 16px; font-size: 16px; font-weight: 600;
@@ -234,7 +297,7 @@ h3.important { color: #b5643d; }
         border-radius: 99px; border: 1px solid var(--rule); background: var(--card); color: var(--dim); }
 .view.on { background: var(--patina); border-color: var(--patina); color: var(--paper); }
 .view:hover:not(.on) { color: var(--ink); }
-.disk { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.disk { display: grid; grid-template-columns: minmax(280px, 1.15fr) minmax(280px, .85fr); gap: 22px; align-items: start; }
 .disk[hidden] { display: none; }
 @media (max-width: 820px) { .disk { grid-template-columns: minmax(0, 1fr); } }
 .roots { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -259,27 +322,34 @@ h3.important { color: #b5643d; }
 .frow .sz i { font-style: normal; color: var(--dim); font-size: 12px; margin-right: 2px; }
 .frow .ag { color: var(--dim); font-size: 12px; width: 78px; text-align: right; white-space: nowrap; }
 .dot2 { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.diskstage {
+  background: radial-gradient(80% 80% at 50% 42%, #24365c 0%, #1a2744 55%, #141e33 100%);
+  border-radius: 18px; padding: 16px 16px 8px; min-height: 460px;
+}
+.diskstage .crumbs { color: rgba(255,255,255,.62); margin: 0 8px 4px; }
+.diskstage .crumbs button { color: #9fd7ff; }
 .panel { background: var(--card); border: 1px solid var(--rule); border-radius: var(--round);
-         padding: 16px; position: sticky; top: 16px; max-height: calc(100vh - 32px);
-         overflow-y: auto; }
-.panel h4 { margin: 0 0 12px; font-size: 14px; }
-.sun { width: 100%; max-width: 240px; aspect-ratio: 1; display: block; margin: 0 auto; }
-.sun path { cursor: pointer; transition: opacity .15s; }
-.sun path:hover { opacity: .75; }
+         padding: 16px; }
+.panel h4 { margin: 0 0 4px; font-size: 18px; letter-spacing: -0.02em; }
+.panel .disksub { margin: 0 0 12px; color: var(--dim); font-size: 13px; }
+.sun { width: 100%; max-width: 560px; aspect-ratio: 1; display: block; margin: 0 auto; }
+.sun.rise { animation: discup .55s cubic-bezier(.16,.84,.3,1); transform-origin: 50% 50%; }
+.sun path { cursor: pointer; }
+.sun path:hover { filter: brightness(1.12); }
 /* Both classes sit on the same <text>, so these must not have a space:
    ".sunmid .big" would mean "a .big inside a .sunmid" and match nothing,
    leaving the text at the SVG default of black. */
 .sunmid { text-anchor: middle; fill: var(--ink); }
-.sunmid.big { font-size: 22px; font-weight: 600; fill: var(--ink); }
-.sunmid.sm { font-size: 10px; fill: var(--ink); opacity: .72; }
-.sunmid.after { font-size: 10px; fill: var(--patina); font-weight: 700; }
-@media (prefers-color-scheme: dark) {
-  .sunmid, .sunmid.big, .sunmid.sm { fill: #fff; }
-}
+.sunmid.big { font-size: 26px; font-weight: 650; fill: #fff; }
+.sunmid.sm { font-size: 11px; fill: rgba(255,255,255,.72); }
+.sunmid.after { font-size: 12px; fill: #7dffa8; font-weight: 700; }
+.keys div { cursor: pointer; }
+.keys .swatch { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .sun path.off { opacity: .16 !important; filter: none !important; }
 .keys { margin-top: 12px; font-size: 12px; }
-.keys div { display: flex; align-items: center; gap: 7px; padding: 3px 0; color: var(--dim); }
-.keys b { margin-left: auto; color: var(--ink); font-weight: 500; }
+.keys div { display: flex; align-items: center; gap: 8px; padding: 5px 0; color: var(--dim); cursor: pointer; font-size: 13px; }
+.keys span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.keys b { margin-left: auto; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .empty2 { color: var(--dim); font-size: 13px; padding: 20px 4px; text-align: center; }
 .peek { font: inherit; font-size: 13px; cursor: pointer; border: none; background: none;
         color: var(--dim); padding: 0 2px; width: 18px; flex: none; line-height: 1; }
@@ -310,10 +380,11 @@ h3.important { color: #b5643d; }
           padding: 14px 16px; border-radius: var(--round);
           background: var(--card); border: 1px solid var(--patina); }
 .update.on { display: flex; }
+.ask p { white-space: pre-wrap; max-height: 240px; overflow: auto; }
 .sheetback {
-  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
-  padding: 24px; background: rgba(0,0,0,.45);
-  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  padding: 24px; background: rgba(0,0,0,.55);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
 }
 .sheetback[hidden] { display: none; }
 .sheet {
@@ -388,6 +459,17 @@ h3.important { color: #b5643d; }
     </div>
   </div>
 
+  <div class="sheetback" id="askback" hidden>
+    <div class="sheet ask" role="dialog" aria-labelledby="asktitle">
+      <b id="asktitle"></b>
+      <p id="askbody"></p>
+      <div class="sheetbar">
+        <button id="askcancel" type="button">Cancel</button>
+        <button class="go" id="askok" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
   <div class="update" id="update">
     <span class="who"><b id="uptitle">Skurra <span id="upver"></span> is ready</b><em id="upnotes"></em>
       <span class="upbar" id="upbar"><i></i></span>
@@ -415,67 +497,172 @@ h3.important { color: #b5643d; }
       <div class="scene scene-scan" aria-hidden="true">
         <div class="gauge">
           <svg viewBox="0 0 220 220">
-            <circle class="gaugetrack" cx="110" cy="110" r="92"/>
+            <defs>
+              <linearGradient id="ringg" x1="28" y1="180" x2="192" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#f4ff6a"/>
+                <stop offset=".42" stop-color="#8dff45"/>
+                <stop offset="1" stop-color="#1dff88"/>
+              </linearGradient>
+              <filter id="bloom" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="5" result="b"/>
+                <feMerge>
+                  <feMergeNode in="b"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+            <circle cx="110" cy="110" r="92" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="16"/>
+            <g id="ticks"></g>
+            <circle id="scanglow" class="gaugeglow" cx="110" cy="110" r="92"/>
             <circle id="scanring" class="gaugearc" cx="110" cy="110" r="92"/>
           </svg>
           <div class="gaugen"><b id="stagepct">0%</b></div>
         </div>
-        <svg class="handart" viewBox="0 0 260 200" aria-hidden="true">
-          <circle cx="78" cy="64" r="48" fill="var(--card)"/>
-          <circle cx="78" cy="64" r="48" fill="none" stroke="#3e6578" stroke-width="13"/>
-          <circle cx="78" cy="64" r="34" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="7"/>
-          <path d="M114 96l26 30" fill="none" stroke="#3a4550" stroke-width="11" stroke-linecap="round"/>
-          <path d="M132 118l16 18" fill="none" stroke="#c4563a" stroke-width="13" stroke-linecap="round"/>
-          <path d="M176 150l58 22-6 18-62-16z" fill="#2c3338"/>
-          <path d="M158 132c6 16 16 34 40 42 12 3 18-8 12-16-10-20-22-38-36-46-10-6-22 0-16 20z" fill="#f2c7a6"/>
-          <ellipse cx="156" cy="128" rx="11" ry="16" fill="#e8b892" transform="rotate(48 156 128)"/>
-          <ellipse cx="172" cy="124" rx="9" ry="15" fill="#f6d2b4" transform="rotate(-28 172 124)"/>
-          <ellipse cx="186" cy="132" rx="8" ry="14" fill="#f0c4a2" transform="rotate(-12 186 132)"/>
-          <ellipse cx="196" cy="144" rx="7" ry="13" fill="#e7b892" transform="rotate(4 196 144)"/>
-        </svg>
       </div>
       <div class="scene scene-clean" aria-hidden="true">
-        <svg class="brushart" viewBox="0 0 460 300">
-          <g class="ash" fill="#d9d3c8"><circle cx="150" cy="230" r="4"/><circle cx="176" cy="220" r="3"/></g>
-          <g class="ash d2" fill="#c4beb4"><circle cx="210" cy="228" r="3.5"/><circle cx="236" cy="216" r="2.5"/></g>
-          <g class="ash d3" fill="#e4ded4"><circle cx="130" cy="236" r="3"/><circle cx="260" cy="224" r="3.5"/></g>
-          <g class="brush">
-            <path class="spark" d="M96 70l4 11 11 4-11 4-4 11-4-11-11-4 11-4z" fill="var(--patina)"/>
-            <path class="spark" d="M300 88l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="var(--patina)" style="animation-delay:.4s"/>
-            <rect x="196" y="28" width="42" height="118" rx="21" fill="#f7faf8" transform="rotate(-18 217 87)"/>
-            <rect x="188" y="112" width="58" height="18" rx="6" fill="#d5deda" transform="rotate(-18 217 121)"/>
-            <path d="M150 150c40-20 130-24 190-4 10 4 8 16-6 20-46 16-130 18-184 2-14-4-16-12 0-18z" fill="#f7faf8"/>
-            <path d="M168 156c6 28 8 28 2 32M200 150c6 34 8 34 2 36M232 148c6 34 8 34 2 36M264 150c6 30 8 30 2 32M296 156c6 24 8 24 2 26" fill="none" stroke="#e7eeeb" stroke-width="4" stroke-linecap="round"/>
+        <svg class="brushart" viewBox="90 -16 230 290">
+          <defs>
+            <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#f0d7a4"/>
+              <stop offset=".4" stop-color="#c4893f"/>
+              <stop offset="1" stop-color="#7a4a22"/>
+            </linearGradient>
+            <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#fff1c4"/>
+              <stop offset=".45" stop-color="#d4ae62"/>
+              <stop offset="1" stop-color="#8a6428"/>
+            </linearGradient>
+            <linearGradient id="feather" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ffffff"/>
+              <stop offset=".4" stop-color="#f4f1ea"/>
+              <stop offset="1" stop-color="#c9c2b4"/>
+            </linearGradient>
+            <linearGradient id="feather2" x1="1" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#fff"/>
+              <stop offset="1" stop-color="#d5d0c6"/>
+            </linearGradient>
+            <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#000" flood-opacity=".28"/>
+            </filter>
+            <symbol id="plume">
+              <path d="M0 0 C22 2 30 22 18 48 C10 66 3 76 0 78 C-3 76 -10 66 -18 48 C-30 22 -22 2 0 0 Z" fill="url(#feather)"/>
+              <path d="M0 4 C3 24 3 52 1 74" fill="none" stroke="#c3baae" stroke-width=".8"/>
+            </symbol>
+          </defs>
+          <g class="ash" fill="#e7e0d4"><circle cx="150" cy="250" r="2.2"/><circle cx="168" cy="268" r="1.6"/><circle cx="142" cy="274" r="1.3"/></g>
+          <g class="ash d2" fill="#d4cdc2"><circle cx="190" cy="258" r="1.8"/><circle cx="206" cy="276" r="1.4"/><circle cx="178" cy="286" r="1.2"/></g>
+          <g class="ash d3" fill="#f3eee6"><circle cx="128" cy="262" r="1.5"/><circle cx="220" cy="270" r="1.7"/><circle cx="160" cy="292" r="1.1"/></g>
+          <g class="ash d4" fill="#c9c2b6"><circle cx="236" cy="258" r="1.4"/><circle cx="112" cy="268" r="1.6"/></g>
+          <g class="brush" filter="url(#soft)">
+            <g transform="translate(198 132) rotate(-16)">
+              <use href="#plume" transform="rotate(-34) scale(1.15)" opacity=".75"/>
+              <use href="#plume" transform="rotate(-24) scale(1.2)" opacity=".8"/>
+              <use href="#plume" transform="rotate(-14) scale(1.22)" opacity=".85"/>
+              <use href="#plume" transform="rotate(-4) scale(1.24)" opacity=".9"/>
+              <use href="#plume" transform="rotate(6) scale(1.2)" opacity=".85"/>
+              <use href="#plume" transform="rotate(16) scale(1.14)" opacity=".8"/>
+              <use href="#plume" transform="rotate(26) scale(1.08)" opacity=".75"/>
+              <use href="#plume" transform="rotate(-30) scale(1.02)"/>
+              <use href="#plume" transform="rotate(-20) scale(1.08)"/>
+              <use href="#plume" transform="rotate(-10) scale(1.12)"/>
+              <use href="#plume" transform="rotate(0) scale(1.16)"/>
+              <use href="#plume" transform="rotate(10) scale(1.1)"/>
+              <use href="#plume" transform="rotate(20) scale(1.04)"/>
+              <use href="#plume" transform="rotate(30) scale(.96)"/>
+              <path d="M-11 -128 h22 a11 11 0 0 1 11 11 v100 a7 7 0 0 1-7 7 h-30 a7 7 0 0 1-7-7 v-100 a11 11 0 0 1 11-11z" fill="url(#wood)"/>
+              <path d="M-4 -116 h6 v82 h-6z" fill="rgba(255,255,255,.25)"/>
+              <path d="M-6 -128 h9 v9 h-9z" fill="#6a4322"/>
+              <rect x="-28" y="-18" width="56" height="16" rx="3" fill="url(#brass)"/>
+              <rect x="-28" y="-16" width="56" height="3" fill="rgba(255,255,255,.5)"/>
+            </g>
           </g>
         </svg>
       </div>
       <div class="scene scene-empty" aria-hidden="true">
-        <svg class="binart" viewBox="0 0 420 280">
-          <path d="M156 70h108l-12 16H168z" fill="var(--card)" stroke="var(--ink)" stroke-width="2.5"/>
-          <path d="M148 108h124l-16 96H164z" fill="var(--card)" stroke="var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
-          <rect class="drop" x="190" y="118" width="36" height="8" rx="2" fill="var(--patina)"/>
-          <rect class="drop d2" x="178" y="118" width="24" height="8" rx="2" fill="var(--dim)"/>
-          <rect class="drop d3" x="214" y="118" width="20" height="8" rx="2" fill="var(--ink)" opacity=".4"/>
-        </svg>
-      </div>
-      <div class="scene scene-rocket" aria-hidden="true">
-        <svg class="rocketart" viewBox="0 0 420 280">
-          <g class="rocket">
-            <path class="flame" d="M196 214c8 22 20 22 28 0-8 8-20 8-28 0z" fill="#7dcea0"/>
-            <path d="M186 168l-22 36h28z" fill="#d5deda"/>
-            <path d="M234 168l22 36h-28z" fill="#c5d0cb"/>
-            <path d="M210 48c28 18 40 70 40 118h-80c0-48 12-100 40-118z" fill="#f7faf8"/>
-            <path d="M210 48c-8 16-14 40-16 70h16z" fill="#e7eeeb"/>
-            <circle cx="210" cy="118" r="16" fill="var(--card)" stroke="var(--patina)" stroke-width="6"/>
-            <path d="M188 196h44v14h-44z" fill="#e7eeeb"/>
+        <svg class="binart" viewBox="100 40 220 270">
+          <defs>
+            <linearGradient id="binmetal" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#6e777f"/>
+              <stop offset=".32" stop-color="#f7fafc"/>
+              <stop offset=".68" stop-color="#d5dde4"/>
+              <stop offset="1" stop-color="#667078"/>
+            </linearGradient>
+            <linearGradient id="binlid" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ffffff"/>
+              <stop offset="1" stop-color="#c5ced6"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="210" cy="286" rx="108" ry="16" fill="rgba(0,0,0,.35)"/>
+          <g class="paper" fill="#efe8dc"><rect x="176" y="52" width="46" height="28" rx="3" transform="rotate(-12 199 66)"/></g>
+          <g class="paper d2" fill="#f7f4ee"><rect x="198" y="40" width="40" height="24" rx="3" transform="rotate(8 218 52)"/></g>
+          <g class="paper d3" fill="#d9f0e4"><rect x="160" y="58" width="36" height="22" rx="3" transform="rotate(-18 178 69)"/></g>
+          <g class="paper d4" fill="#f6d5ce"><rect x="210" y="62" width="32" height="20" rx="3"/></g>
+          <path d="M132 128 h156 l-24 140 H156 z" fill="url(#binmetal)"/>
+          <path d="M168 150 h84 l-12 100 H180 z" fill="#141c22"/>
+          <path d="M156 150 h28 l-4 96 h-18 z" fill="rgba(255,255,255,.18)"/>
+          <g class="lid">
+            <path d="M118 118 h184 l-16 22 H134 z" fill="url(#binlid)"/>
+            <rect x="186" y="96" width="48" height="18" rx="5" fill="#b7c2cb"/>
+            <rect x="198" y="100" width="24" height="6" rx="3" fill="#8b969f"/>
           </g>
         </svg>
       </div>
-      <div class="scene scene-done" aria-hidden="true"><div class="check">&#10003;</div></div>
+      <div class="scene scene-rocket" aria-hidden="true">
+        <svg class="rocketart" viewBox="0 0 280 360">
+          <defs>
+            <linearGradient id="bodyg" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#c5ced8"/>
+              <stop offset=".28" stop-color="#ffffff"/>
+              <stop offset=".62" stop-color="#f4f7fb"/>
+              <stop offset="1" stop-color="#9aa6b5"/>
+            </linearGradient>
+            <linearGradient id="redg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#ff6b6b"/>
+              <stop offset=".45" stop-color="#e53935"/>
+              <stop offset="1" stop-color="#9e1b1b"/>
+            </linearGradient>
+            <linearGradient id="redg2" x1="1" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ff8a80"/>
+              <stop offset="1" stop-color="#c62828"/>
+            </linearGradient>
+            <radialGradient id="winglass" cx="38%" cy="35%" r="65%">
+              <stop offset="0" stop-color="#d7f1ff"/>
+              <stop offset=".45" stop-color="#3aa0e8"/>
+              <stop offset="1" stop-color="#0d5fa8"/>
+            </radialGradient>
+            <radialGradient id="flameg" cx="50%" cy="18%" r="75%">
+              <stop offset="0" stop-color="#fff6c2"/>
+              <stop offset=".28" stop-color="#ffd24a"/>
+              <stop offset=".7" stop-color="#ff8a1e"/>
+              <stop offset="1" stop-color="#ff6a00" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="nozzle" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#4a515a"/>
+              <stop offset="1" stop-color="#1c2126"/>
+            </linearGradient>
+          </defs>
+          <g class="rocket">
+            <path class="flame" d="M116 252c-6 28-4 62 24 96 28-34 30-68 24-96-8 14-40 14-48 0z" fill="url(#flameg)"/>
+            <path class="flame" d="M128 258c-2 18 0 40 12 62 12-22 14-44 12-62-4 8-20 8-24 0z" fill="#ffe38a"/>
+            <path d="M104 188 C62 206 46 248 58 272 L114 230 Z" fill="url(#redg)"/>
+            <path d="M176 188 C218 206 234 248 222 272 L166 230 Z" fill="url(#redg2)"/>
+            <path d="M116 228 h48 l6 22 h-60 z" fill="url(#nozzle)"/>
+            <path d="M112 118 C112 168 108 214 116 236 h48 C172 214 168 168 168 118 Z" fill="url(#bodyg)"/>
+            <path d="M118 128 C118 160 116 190 120 214 h16 C132 186 130 156 128 128 Z" fill="rgba(255,255,255,.55)"/>
+            <path d="M140 28 C172 62 184 96 176 124 H104 C96 96 108 62 140 28 Z" fill="url(#redg)"/>
+            <path d="M128 46 C134 70 132 92 128 108 h10 C140 88 138 64 134 46 Z" fill="rgba(255,255,255,.4)"/>
+            <circle cx="140" cy="168" r="24" fill="#d5dee8"/>
+            <circle cx="140" cy="168" r="18" fill="url(#winglass)"/>
+            <ellipse cx="133" cy="161" rx="6" ry="3.5" fill="rgba(255,255,255,.75)"/>
+          </g>
+        </svg>
+      </div>
+      <div class="scene scene-done" aria-hidden="true"><div class="orb">&#10003;</div></div>
       <h2 class="stagetitle" id="stagetitle">Scanning your system</h2>
-      <p class="stagesub" id="stagesub"></p>
       <p class="reelbig" id="reelbig"></p>
+      <p class="stagesub" id="stagesub"></p>
       <div class="reellist" id="reellist"></div>
+      <button class="stagedone" id="stagedone" type="button">Done</button>
     </div>
   </div>
 
@@ -530,19 +717,22 @@ h3.important { color: #b5643d; }
   </div>
 
   <div class="disk" id="diskview" hidden>
+    <div class="diskstage">
+      <div class="crumbs" id="crumbs"></div>
+      <svg class="sun" id="sun" viewBox="0 0 360 360"></svg>
+    </div>
     <div>
       <div class="roots" id="roots"></div>
-      <div class="crumbs" id="crumbs"></div>
+      <div class="panel">
+        <h4 id="diskname">This folder</h4>
+        <p class="disksub" id="disksub"></p>
+        <div class="keys" id="keys"></div>
+      </div>
       <div class="finder" id="dfinder">
         <input id="dfind" type="search" autocomplete="off" spellcheck="false"
                placeholder="Filter this folder by name">
       </div>
       <div id="flist"></div>
-    </div>
-    <div class="panel">
-      <h4>What is in here</h4>
-      <svg class="sun" id="sun" viewBox="0 0 200 200"></svg>
-      <div class="keys" id="keys"></div>
     </div>
   </div>
 
@@ -599,6 +789,30 @@ function mark(text, q) {
 }
 
 function note(t) { $("#note").textContent = t; }
+
+function ask(title, body, ok) {
+  return new Promise(resolve => {
+    $("#asktitle").textContent = title;
+    $("#askbody").textContent = body;
+    $("#askok").textContent = ok || "OK";
+    $("#askback").hidden = false;
+    const finish = yes => {
+      $("#askback").hidden = true;
+      $("#askok").onclick = null;
+      $("#askcancel").onclick = null;
+      document.removeEventListener("keydown", onkey);
+      resolve(yes);
+    };
+    const onkey = e => {
+      if (e.key === "Escape") finish(false);
+      if (e.key === "Enter") finish(true);
+    };
+    document.addEventListener("keydown", onkey);
+    $("#askcancel").onclick = () => finish(false);
+    $("#askok").onclick = () => finish(true);
+    $("#askok").focus();
+  });
+}
 const byPath = p => rows.find(r => r.path === p);
 const picked = kinds => [...chosen].map(byPath).filter(r => r && kinds.includes(r.kind));
 const mb = list => list.reduce((a, r) => a + r.mb, 0);
@@ -614,11 +828,33 @@ const meta = (list) => list.length ? `${list.length} item${list.length === 1 ? "
 
 let poller = null, frame = null, shown = 0, target = 0;
 
+function buildTicks() {
+  const g = $("#ticks");
+  if (!g || g.childElementCount) return;
+  const n = 96;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", (110 + Math.cos(a) * 54).toFixed(2));
+    line.setAttribute("y1", (110 + Math.sin(a) * 54).toFixed(2));
+    line.setAttribute("x2", (110 + Math.cos(a) * 66).toFixed(2));
+    line.setAttribute("y2", (110 + Math.sin(a) * 66).toFixed(2));
+    g.appendChild(line);
+  }
+}
+
 function paint() {
   const gap = target - shown;
   shown = Math.abs(gap) < 0.05 ? target : shown + gap * 0.14;
+  const off = String(578.05 * (1 - shown / 100));
   const ring = $("#scanring");
-  if (ring) ring.style.strokeDashoffset = String(578.05 * (1 - shown / 100));
+  const glow = $("#scanglow");
+  if (ring) ring.style.strokeDashoffset = off;
+  if (glow) glow.style.strokeDashoffset = off;
+  buildTicks();
+  const ticks = document.querySelectorAll("#ticks line");
+  const lit = Math.round(shown / 100 * ticks.length);
+  ticks.forEach((t, i) => t.classList.toggle("on", i < lit));
   const pct = $("#stagepct");
   if (pct && $("#stage").dataset.mode === "scan") pct.textContent = Math.round(shown) + "%";
   frame = requestAnimationFrame(paint);
@@ -626,7 +862,8 @@ function paint() {
 
 function whereLine(text) {
   const sub = $("#stagesub");
-  if (sub && $("#stage").dataset.mode !== "done" && $("#stage").dataset.mode !== "rocket") sub.textContent = text || "";
+  const mode = $("#stage").dataset.mode;
+  if (sub && mode !== "done" && mode !== "complete") sub.textContent = text || "";
 }
 
 function openStage(mode, title) {
@@ -634,7 +871,7 @@ function openStage(mode, title) {
   stage.dataset.mode = mode;
   stage.hidden = false;
   $("#stagetitle").textContent = title;
-  if (mode !== "done" && mode !== "rocket") {
+  if (mode !== "done" && mode !== "complete") {
     $("#stagesub").textContent = "";
     $("#reelbig").textContent = "";
     $("#reellist").innerHTML = "";
@@ -1089,13 +1326,24 @@ function celebrate(items, headline) {
   }
   $("#reelbig").textContent = total > 0 ? "0 MB" : "Empty";
   const flying = headline === "Cleared";
-  openStage(flying ? "rocket" : "done", flying ? "Optimized" : headline);
+  openStage(flying ? "complete" : "done", flying ? "Cleanup complete" : headline);
+  if (flying) $("#stagesub").textContent = "successfully cleaned";
   watch(false);
   $("#scan").disabled = true;
   note(headline);
   const t0 = performance.now();
   const dur = 900;
   return new Promise(done => {
+    let closed = false;
+    function finishUp() {
+      if (closed) return;
+      closed = true;
+      closeStage();
+      $("#scan").disabled = false;
+      done();
+    }
+    const btn = $("#stagedone");
+    if (btn) btn.onclick = finishUp;
     function tick(now) {
       const k = Math.min(1, (now - t0) / dur);
       const eased = 1 - Math.pow(1 - k, 3);
@@ -1103,12 +1351,8 @@ function celebrate(items, headline) {
       if (k < 1) requestAnimationFrame(tick);
     }
     if (total > 0) requestAnimationFrame(tick);
-    const wait = Math.max(2400, 1000 + shown.length * 180);
-    setTimeout(() => {
-      closeStage();
-      $("#scan").disabled = false;
-      done();
-    }, wait);
+    const wait = Math.max(4200, 1600 + shown.length * 180);
+    setTimeout(finishUp, wait);
   });
 }
 
@@ -1136,49 +1380,63 @@ function arc(cx, cy, r0, r1, a0, a1) {
   return `M${x0} ${y0}A${r1} ${r1} 0 ${big} 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 ${big} 0 ${x3} ${y3}Z`;
 }
 
+const SUN_HUES = [142, 208, 45, 350, 268, 24, 178, 4, 88, 230, 320, 60];
+
+function wedgeColour(i, n) {
+  const hue = SUN_HUES[n % SUN_HUES.length];
+  const light = 46 + (n % 3) * 7;
+  return `hsl(${hue} 72% ${light}%)`;
+}
+
 function drawSun(data) {
   const sun = $("#sun"), keys = $("#keys");
+  sun.classList.remove("rise");
   const items = data.items.filter(i => i.mb > 0);
+  const name = data.crumbs && data.crumbs.length ? data.crumbs[data.crumbs.length - 1].name : "This folder";
+  const title = $("#diskname");
+  if (title) title.textContent = name;
   if (!items.length) {
-    sun.innerHTML = `<text class="sunmid big" x="100" y="105">empty</text>`;
-    keys.innerHTML = ""; return;
+    sun.innerHTML = `<text class="sunmid big" x="180" y="186">empty</text>`;
+    keys.innerHTML = "";
+    const sub = $("#disksub");
+    if (sub) sub.textContent = "";
+    return;
   }
   const total = items.reduce((a, i) => a + i.mb, 0);
-  const byKind = {};
-  for (const i of items) {
-    const k = i.dir ? "folder" : i.kind;
-    (byKind[k] = byKind[k] || []).push(i);
-  }
-  let out = "", a = -Math.PI / 2;
-  const order = Object.entries(byKind).sort((x, y) =>
-        y[1].reduce((s, i) => s + i.mb, 0) - x[1].reduce((s, i) => s + i.mb, 0));
-  for (const [kind, list] of order) {
-    const sum = list.reduce((s, i) => s + i.mb, 0);
-    const span = sum / total * Math.PI * 2;
-    out += `<path d="${arc(100, 100, 44, 62, a, a + span)}" fill="${KIND_COLOUR[kind]}" opacity=".55"><title>${kind} · ${size(sum)}</title></path>`;
-    let b = a;
-    const shown = list.slice(0, 14);
-    shown.forEach((i, n) => {
-      const sp = i.mb / total * Math.PI * 2;
-      // step the brightness along the ring so neighbours stay apart
-      const shade = 1 - (n % 4) * 0.13;
-      out += `<path d="${arc(100, 100, 64, 92, b, b + sp)}" fill="${KIND_COLOUR[kind]}"
-        style="filter:brightness(${shade})" stroke="var(--card)" stroke-width=".6"
-        data-go="${i.dir ? i.path : ""}" data-item="${i.path}"><title>${i.name} · ${size(i.mb)}</title></path>`;
-      b += sp;
-    });
+  const coloured = items.map((i, n) => ({ ...i, colour: wedgeColour(i, n) }));
+  let out = `<circle cx="180" cy="180" r="172" fill="none"/>`;
+  let a = -Math.PI / 2;
+  const gap = Math.min(0.02, Math.PI / Math.max(12, coloured.length));
+  coloured.forEach(i => {
+    const span = i.mb / total * Math.PI * 2;
+    const end = a + (span > gap * 3 ? span - gap : Math.max(span, 0.004));
+    out += `<path d="${arc(180, 180, 86, 158, a, end)}" fill="${i.colour}"
+      stroke="#162033" stroke-width="1.4"
+      data-go="${i.dir ? esc(i.path) : ""}" data-item="${esc(i.path)}"><title>${esc(i.name)} · ${size(i.mb)}</title></path>`;
+    const mid = a + span * 0.5;
+    out += `<path d="${arc(180, 180, 62, 80, mid - Math.min(span, 0.35) / 2, mid + Math.min(span, 0.35) / 2)}" fill="${i.colour}" opacity=".85"></path>`;
     a += span;
-  }
-  out += `<text class="sunmid big" id="suntotal" x="100" y="95">${size(total)}</text>`;
-  out += `<text class="sunmid sm" id="suncount" x="100" y="108">${data.items.length} items</text>`;
-  out += `<text class="sunmid after" id="sunafter" x="100" y="121"></text>`;
+  });
+  out += `<circle cx="180" cy="180" r="56" fill="#162033"/>`;
+  out += `<text class="sunmid big" id="suntotal" x="180" y="176">${size(total)}</text>`;
+  out += `<text class="sunmid sm" id="suncount" x="180" y="196">${data.items.length} items</text>`;
+  out += `<text class="sunmid after" id="sunafter" x="180" y="214"></text>`;
   sun.innerHTML = out;
+  void sun.offsetWidth;
+  sun.classList.add("rise");
   sunTotal = total;
   for (const path of sun.querySelectorAll("path[data-go]")) {
     if (path.dataset.go) path.onclick = () => openDir(path.dataset.go);
   }
-  keys.innerHTML = order.map(([k, l]) => [k, l.reduce((s, i) => s + i.mb, 0)])
-    .map(([k, mb]) => `<div><i class="dot2" style="background:${KIND_COLOUR[k]}"></i>${k}<b>${size(mb)}</b></div>`).join("");
+  const top = coloured.slice(0, 8);
+  const sub = $("#disksub");
+  if (sub) sub.textContent = size(total) + " in this folder";
+  keys.innerHTML = top.map(i =>
+    `<div data-go="${i.dir ? esc(i.path) : ""}"><i class="swatch" style="background:${i.colour}"></i><span>${esc(i.name)}</span><b>${size(i.mb)}</b></div>`
+  ).join("");
+  for (const row of keys.querySelectorAll("[data-go]")) {
+    if (row.dataset.go) row.onclick = () => openDir(row.dataset.go);
+  }
 }
 
 function drawDisk(data) {
@@ -1202,8 +1460,9 @@ function drawDisk(data) {
     refreshDisk();
     return;
   }
+  const colourOf = new Map(data.items.filter(i => i.mb > 0).map((i, n) => [i.path, wedgeColour(i, n)]));
   $("#flist").innerHTML = shown.length ? shown.map(i => {
-    const c = KIND_COLOUR[i.dir ? "folder" : i.kind];
+    const c = colourOf.get(i.path) || KIND_COLOUR[i.dir ? "folder" : i.kind];
     const w = Math.max(2, Math.round(i.mb / biggest * 100));
     const age = i.days === 0 ? "today" : i.days === 1 ? "yesterday" : i.days + " days ago";
     return `<div class="frow ${i.dir ? "isdir" : ""}">
@@ -1383,10 +1642,11 @@ $("#trash").onclick = async () => {
   const warn = care.length
     ? `\n\nTake care with:\n${care.map(r => `\u2022 ${r.name} \u2014 ${r.why}`).join("\n")}`
     : "";
-  const msg = WIN && apps
-    ? `Remove these?\n\n${names}${warn}\n\nPrograms open their own uninstaller. Folders go to the Recycle Bin.`
-    : `Move these to the ${T()}?\n\n${names}${warn}\n\nYou can drag them back out until you empty it.`;
-  if (!confirm(msg)) return;
+  const title = apps && WIN ? "Remove these?" : `Move these to the ${T()}?`;
+  const body = (apps && WIN
+    ? `${names}${warn}\n\nPrograms open their own uninstaller. Folders go to the Recycle Bin.`
+    : `${names}${warn}\n\nYou can drag them back out until you empty it.`).trim();
+  if (!await ask(title, body, apps && WIN ? "Remove" : "Move")) return;
   busy(true, `Moving to ${T()}.`, `Moving to ${T()}`);
   try {
     const res = await runJob("/api/trash", items, true);
@@ -1434,7 +1694,7 @@ async function trashFiles() {
   const items = dirRows.filter(i => dpick.has(i.path));
   const names = items.map(i => `${i.name}  (${size(i.mb)})`).join("\n");
   const where = WIN ? "Recycle Bin" : "Trash";
-  if (!confirm(`Move these to the ${where}?\n\n${names}\n\nYou can put them back until you empty it.`)) return;
+  if (!await ask(`Move these to the ${where}?`, `${names}\n\nYou can put them back until you empty it.`, "Move")) return;
   busy(true, `Moving to the ${where}.`, "Moving");
   try {
     const res = await runJob("/api/trash", items.map(i => ({ ...i, kind: "file" })), true);
@@ -1458,8 +1718,7 @@ $("#clear").onclick = async () => {
   const warn = care.length
     ? `\n\nTake care with:\n${care.map(r => `\u2022 ${r.name} \u2014 ${r.why}`).join("\n")}`
     : "";
-  if (!confirm(`Clear these now?\n\n${names}${warn}`
-      + `\n\nThese are deleted on the spot, not moved to the ${T()}, so this cannot be undone.`)) return;
+  if (!await ask("Clear these now?", `${names}${warn}\n\nThese are deleted on the spot, not moved to the ${T()}, so this cannot be undone.`, "Clear")) return;
   busy(true, "Clearing caches.", "Clearing");
   try {
     const res = await runJob("/api/clear", items, true);
@@ -1474,7 +1733,7 @@ $("#clear").onclick = async () => {
 
 $("#binpick").onclick = async () => {
   const names = [...binPick];
-  if (!confirm(`Delete these for good?\n\n${names.join("\n")}\n\nThis cannot be undone.`)) return;
+  if (!await ask("Delete these for good?", `${names.join("\n")}\n\nThis cannot be undone.`, "Delete")) return;
   $("#binpick").disabled = true;
   busy(true, "", "Deleting");
   try {
@@ -1493,7 +1752,7 @@ $("#binpick").onclick = async () => {
 };
 
 $("#empty").onclick = async () => {
-  if (!confirm(`Empty the ${T()}?\n\nEverything in it is deleted for good. This cannot be undone.`)) return;
+  if (!await ask(`Empty the ${T()}?`, "Everything in it is deleted for good. This cannot be undone.", "Empty")) return;
   $("#empty").disabled = true;
   busy(true, "", "Emptying");
   try {

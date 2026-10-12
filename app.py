@@ -2160,8 +2160,25 @@ try:
 except ImportError:
     webview = None
 
+def show_skurra_icon():
+    """Keep the dock picture as Skurra. A Python picture makes it look like another app opened."""
+    icon = HERE / "icon" / "Skurra.icns"
+    if not icon.is_file():
+        return
+    try:
+        from AppKit import NSApplication, NSImage, NSApplicationActivationPolicyRegular
+    except ImportError:
+        return
+    app = NSApplication.sharedApplication()
+    app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+    image = NSImage.alloc().initWithContentsOfFile_(str(icon))
+    if image is not None:
+        app.setApplicationIconImage_(image)
+
+
 if webview and not os.environ.get("SKURRA_BROWSER"):
     print("\nSkurra is open in its own window. Close the window to stop.\n")
+    show_skurra_icon()
     webview.create_window("Skurra", f"http://localhost:{PORT}",
                           width=840, height=800, min_size=(640, 520))
     try:
