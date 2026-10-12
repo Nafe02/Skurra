@@ -53,9 +53,11 @@ jobs:
             --add-data "index.html;." `
             @bins `
             app.py
-          python -c "p=open(r'dist/Skurra.exe','rb').read(); missing=[n for n in (b'python312.dll', b'vcruntime140.dll', b'vcruntime140_1.dll') if n not in p];
-print('missing', missing) if missing else print('Windows bundle has the Python DLL and the C runtime');
-raise SystemExit(1) if missing else None"
+          $text = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes("dist/Skurra.exe"))
+          foreach ($name in @("python312.dll", "vcruntime140.dll", "vcruntime140_1.dll")) {
+            if (-not $text.Contains($name)) { throw "Skurra.exe is missing $name" }
+          }
+          Write-Host "Windows bundle has the Python DLL and the C runtime."
       - uses: actions/upload-artifact@v4
         with:
           name: windows

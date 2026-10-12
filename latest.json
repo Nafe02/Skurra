@@ -1,5 +1,5 @@
 {
-  "version": "1.20.0",
+  "version": "1.21.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
   "notes": "Windows opens again. The last build could not load its Python DLL on a PC that did not already have the Visual C++ runtime."
 }
