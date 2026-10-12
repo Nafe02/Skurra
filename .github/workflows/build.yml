@@ -33,6 +33,10 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          function Fail($msg) {
+            Write-Host "::error::$msg"
+            throw $msg
+          }
           $prefix = (python -c "import sys; print(sys.base_prefix)").Trim()
           $bins = @()
           foreach ($name in @("vcruntime140.dll", "vcruntime140_1.dll")) {
@@ -40,7 +44,7 @@ jobs:
               (Join-Path $prefix $name),
               (Join-Path "$env:SystemRoot\System32" $name)
             ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-            if (-not $hit) { throw "Cannot ship Windows without $name" }
+            if (-not $hit) { Fail "Cannot ship Windows without $name" }
             Copy-Item $hit "windows-runtime-$name"
             $bins += @("--add-binary", "${hit};.")
           }
@@ -56,17 +60,19 @@ jobs:
               $extra = "windows-runtime-$name"
               if (Test-Path $extra) { Copy-Item $extra "dist\Skurra\$name" }
             }
-            if (-not (Test-Path "dist\Skurra\$name")) { throw "dist\Skurra is missing $name" }
+            if (-not (Test-Path "dist\Skurra\$name")) { Fail "dist\Skurra is missing $name" }
           }
           if (Test-Path dist\Skurra-Windows.zip) { Remove-Item dist\Skurra-Windows.zip }
           Compress-Archive -Path dist\Skurra -DestinationPath dist\Skurra-Windows.zip
           $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-          & $csc /nologo /optimize /target:winexe `
+          if (-not (Test-Path $csc)) { Fail "Windows launcher compiler was not at $csc" }
+          $compile = & $csc /nologo /optimize /target:winexe `
             /r:System.IO.Compression.dll `
             /r:System.IO.Compression.FileSystem.dll `
             /r:System.Windows.Forms.dll `
-            /out:stub.exe windows\launchstub.cs
-          if ($LASTEXITCODE -ne 0) { throw "Could not compile the Windows launcher" }
+            /out:stub.exe windows\launchstub.cs 2>&1 | Out-String
+          Write-Host $compile
+          if ($LASTEXITCODE -ne 0) { Fail ($compile -replace '\s+', ' ') }
           $stub = [IO.File]::ReadAllBytes("stub.exe")
           $zip = [IO.File]::ReadAllBytes("dist\Skurra-Windows.zip")
           $out = [IO.File]::Create("dist\Skurra.exe")
@@ -76,7 +82,7 @@ jobs:
           $out.Close()
           $packed = [IO.File]::ReadAllBytes("dist\Skurra.exe")
           $at = [BitConverter]::ToInt64($packed, $packed.Length - 8)
-          if ($packed[$at] -ne 0x50 -or $packed[$at + 1] -ne 0x4B) { throw "Skurra.exe is not carrying the Windows folder" }
+          if ($packed[$at] -ne 0x50 -or $packed[$at + 1] -ne 0x4B) { Fail "Skurra.exe is not carrying the Windows folder" }
           Write-Host "Windows launcher is $($packed.Length) bytes and carries python312.dll beside the app."
       - uses: actions/upload-artifact@v4
         with:

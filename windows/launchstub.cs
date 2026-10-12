@@ -19,7 +19,12 @@ static class Program {
             byte[] file = File.ReadAllBytes(self);
             if (file.Length < 16) throw new InvalidDataException("Skurra.exe is incomplete.");
             long zipAt = BitConverter.ToInt64(file, file.Length - 8);
-            if (zipAt < 0 || zipAt > file.Length - 10 || file[zipAt] != (byte)'P' || file[zipAt + 1] != (byte)'K')
+            // The compiler that ships with .NET Framework cannot index a byte
+            // array with a long, so the range is checked and then narrowed.
+            if (zipAt < 0 || zipAt > file.Length - 10)
+                throw new InvalidDataException("Skurra.exe does not contain the app.");
+            int zipIndex = (int)zipAt;
+            if (file[zipIndex] != (byte)'P' || file[zipIndex + 1] != (byte)'K')
                 throw new InvalidDataException("Skurra.exe does not contain the app.");
 
             string tempZip = Path.Combine(Path.GetTempPath(), "skurra-payload.zip");
