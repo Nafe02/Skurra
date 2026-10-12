@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.21.0"
+VERSION = "1.22.0"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1676,12 +1676,18 @@ def install_update():
                 except OSError:
                     pass
             old_pids = ", ".join(str(n) for n in pids)
+            # A folder build already has python312.dll beside the exe. Copying a
+            # new single file over that exe throws the DLL away. Run the download
+            # instead. A lone exe can be replaced, because the download is the
+            # launcher and their shortcut should become that launcher.
+            replace = "$false" if (target.parent / "python312.dll").is_file() else "$true"
             script = Path(tempfile.gettempdir()) / f"skurra-swap-{os.getpid()}.ps1"
             # PowerShell, not a .bat: it can wait properly, prove the new copy
             # runs, and put the old one back if it does not.
             script.write_text(f"""
 $target = {ps_quote(str(target))}
 $fresh  = {ps_quote(str(fresh))}
+$replace = {replace}
 $work   = {ps_quote(str(work))}
 $result = {ps_quote(result)}
 $backup = "$target.bak"
@@ -1718,12 +1724,17 @@ try {{
   }}
   Start-Sleep -Seconds 2
 
-  Copy-Item -LiteralPath $target -Destination $backup -Force -ErrorAction SilentlyContinue
-
-  $copied = $false
-  for ($i = 0; $i -lt 10; $i++) {{
-    try {{ Copy-Item -LiteralPath $fresh -Destination $target -Force; $copied = $true; break }}
-    catch {{ $why = $_.Exception.Message; Start-Sleep -Milliseconds 700 }}
+  if ($replace) {{
+    Copy-Item -LiteralPath $target -Destination $backup -Force -ErrorAction SilentlyContinue
+    $copied = $false
+    for ($i = 0; $i -lt 10; $i++) {{
+      try {{ Copy-Item -LiteralPath $fresh -Destination $target -Force; $copied = $true; break }}
+      catch {{ $why = $_.Exception.Message; Start-Sleep -Milliseconds 700 }}
+    }}
+    $launch = $target
+  }} else {{
+    $copied = $true
+    $launch = $fresh
   }}
 
   if ($copied) {{
@@ -1733,7 +1744,7 @@ try {{
     # check called that a success and threw the backup away. So wait for the
     # new copy to say so itself, by writing its version into started.json.
     Remove-Item -LiteralPath $started -Force -ErrorAction SilentlyContinue
-    $p = Start-Process -FilePath $target -PassThru
+    $p = Start-Process -FilePath $launch -PassThru
     $alive = $false
     for ($i = 0; $i -lt 90; $i++) {{
       Start-Sleep -Seconds 1

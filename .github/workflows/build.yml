@@ -7,6 +7,7 @@
 # The downloads then live at fixed links that never change:
 #   https://github.com/nafe02/Skurra/releases/latest/download/Skurra.dmg
 #   https://github.com/nafe02/Skurra/releases/latest/download/Skurra.exe
+#   https://github.com/nafe02/Skurra/releases/latest/download/Skurra-Windows.zip
 
 name: Build and release
 
@@ -28,40 +29,61 @@ jobs:
           python-version: "3.12"
       - name: Install what the build needs
         run: pip install pywebview pyinstaller send2trash certifi
-      - name: Build Skurra.exe
+      - name: Build the Windows folder, then a launcher that does not unpack Python into Temp
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          # python312.dll will not load on a PC that does not already have the
-          # Visual C++ runtime. The build machine has it, so PyInstaller treats
-          # it as a system file and leaves it out. Windows then says the Python
-          # DLL itself "could not be found".
           $prefix = (python -c "import sys; print(sys.base_prefix)").Trim()
-          Write-Host "Python lives in $prefix"
           $bins = @()
           foreach ($name in @("vcruntime140.dll", "vcruntime140_1.dll")) {
             $hit = @(
               (Join-Path $prefix $name),
               (Join-Path "$env:SystemRoot\System32" $name)
             ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-            if (-not $hit) { throw "Cannot ship Skurra.exe without $name" }
-            Write-Host "Including $hit"
+            if (-not $hit) { throw "Cannot ship Windows without $name" }
+            Copy-Item $hit "windows-runtime-$name"
             $bins += @("--add-binary", "${hit};.")
           }
-          pyinstaller --noconfirm --onefile --windowed --noupx --name Skurra `
+          # A folder, not one file. One file unpacks python312.dll into
+          # Temp\_MEI... and Windows then reports that DLL could not be found.
+          pyinstaller --noconfirm --windowed --noupx --name Skurra `
             --icon icon/Skurra.ico `
             --add-data "index.html;." `
             @bins `
             app.py
-          $text = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes("dist/Skurra.exe"))
           foreach ($name in @("python312.dll", "vcruntime140.dll", "vcruntime140_1.dll")) {
-            if (-not $text.Contains($name)) { throw "Skurra.exe is missing $name" }
+            if (-not (Test-Path "dist\Skurra\$name")) {
+              $extra = "windows-runtime-$name"
+              if (Test-Path $extra) { Copy-Item $extra "dist\Skurra\$name" }
+            }
+            if (-not (Test-Path "dist\Skurra\$name")) { throw "dist\Skurra is missing $name" }
           }
-          Write-Host "Windows bundle has the Python DLL and the C runtime."
+          if (Test-Path dist\Skurra-Windows.zip) { Remove-Item dist\Skurra-Windows.zip }
+          Compress-Archive -Path dist\Skurra -DestinationPath dist\Skurra-Windows.zip
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          & $csc /nologo /optimize /target:winexe `
+            /r:System.IO.Compression.dll `
+            /r:System.IO.Compression.FileSystem.dll `
+            /r:System.Windows.Forms.dll `
+            /out:stub.exe windows\launchstub.cs
+          if ($LASTEXITCODE -ne 0) { throw "Could not compile the Windows launcher" }
+          $stub = [IO.File]::ReadAllBytes("stub.exe")
+          $zip = [IO.File]::ReadAllBytes("dist\Skurra-Windows.zip")
+          $out = [IO.File]::Create("dist\Skurra.exe")
+          $out.Write($stub, 0, $stub.Length)
+          $out.Write($zip, 0, $zip.Length)
+          $out.Write([BitConverter]::GetBytes([int64]$stub.Length), 0, 8)
+          $out.Close()
+          $packed = [IO.File]::ReadAllBytes("dist\Skurra.exe")
+          $at = [BitConverter]::ToInt64($packed, $packed.Length - 8)
+          if ($packed[$at] -ne 0x50 -or $packed[$at + 1] -ne 0x4B) { throw "Skurra.exe is not carrying the Windows folder" }
+          Write-Host "Windows launcher is $($packed.Length) bytes and carries python312.dll beside the app."
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: dist/Skurra.exe
+          path: |
+            dist/Skurra.exe
+            dist/Skurra-Windows.zip
 
   mac:
     runs-on: macos-14
@@ -131,7 +153,10 @@ jobs:
         with:
           tag_name: v${{ steps.v.outputs.version }}
           name: Skurra ${{ steps.v.outputs.version }}
-          body: "Download Skurra.dmg for Mac or Skurra.exe for Windows."
+          body: |
+            Mac: Skurra.dmg
+            Windows: Skurra.exe. If a Python DLL error is still on screen, download Skurra-Windows.zip, extract it, open the Skurra folder, and run the Skurra.exe inside that folder.
           files: |
             out/mac/Skurra.dmg
             out/windows/Skurra.exe
+            out/windows/Skurra-Windows.zip

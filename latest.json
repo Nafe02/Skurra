@@ -1,5 +1,5 @@
 {
-  "version": "1.21.0",
+  "version": "1.22.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Windows opens again. The last build could not load its Python DLL on a PC that did not already have the Visual C++ runtime."
+  "notes": "Windows no longer unpacks Python into a temporary folder. That unpacking is what showed Failed to load Python DLL. Download Skurra.exe again, or use Skurra-Windows.zip and run the Skurra.exe inside the Skurra folder."
 }
