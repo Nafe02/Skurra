@@ -29,11 +29,33 @@ jobs:
       - name: Install what the build needs
         run: pip install pywebview pyinstaller send2trash certifi
       - name: Build Skurra.exe
-        run: >
-          pyinstaller --noconfirm --onefile --windowed --name Skurra
-          --icon icon/Skurra.ico
-          --add-data "index.html;."
-          app.py
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          # python312.dll will not load on a PC that does not already have the
+          # Visual C++ runtime. The build machine has it, so PyInstaller treats
+          # it as a system file and leaves it out. Windows then says the Python
+          # DLL itself "could not be found".
+          $prefix = (python -c "import sys; print(sys.base_prefix)").Trim()
+          Write-Host "Python lives in $prefix"
+          $bins = @()
+          foreach ($name in @("vcruntime140.dll", "vcruntime140_1.dll")) {
+            $hit = @(
+              (Join-Path $prefix $name),
+              (Join-Path "$env:SystemRoot\System32" $name)
+            ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+            if (-not $hit) { throw "Cannot ship Skurra.exe without $name" }
+            Write-Host "Including $hit"
+            $bins += @("--add-binary", "${hit};.")
+          }
+          pyinstaller --noconfirm --onefile --windowed --noupx --name Skurra `
+            --icon icon/Skurra.ico `
+            --add-data "index.html;." `
+            @bins `
+            app.py
+          python -c "p=open(r'dist/Skurra.exe','rb').read(); missing=[n for n in (b'python312.dll', b'vcruntime140.dll', b'vcruntime140_1.dll') if n not in p];
+print('missing', missing) if missing else print('Windows bundle has the Python DLL and the C runtime');
+raise SystemExit(1) if missing else None"
       - uses: actions/upload-artifact@v4
         with:
           name: windows

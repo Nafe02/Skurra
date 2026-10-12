@@ -1,5 +1,5 @@
 {
-  "version": "1.19.0",
+  "version": "1.20.0",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "A full-page scan, a clearer clear, and emptying the Trash stays inside Skurra. Same update for Mac and Windows."
+  "notes": "Windows opens again. The last build could not load its Python DLL on a PC that did not already have the Visual C++ runtime."
 }
