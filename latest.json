@@ -1,5 +1,5 @@
 {
-  "version": "1.22.2",
+  "version": "1.22.3",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "A newer Skurra is ready. Update now replaces this copy and reopens it."
+  "notes": "On a Mac, OK on the folder question now lets Skurra continue. On Windows, Python stays beside the app. Update now replaces this copy and reopens it."
 }

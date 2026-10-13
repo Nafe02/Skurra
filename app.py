@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.2"
+VERSION = "1.22.3"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1466,6 +1466,11 @@ def permissions():
             "stale": bool(state["asked"] and state["version"] != VERSION)}
 
 
+# One Mac folder question at a time. A second knock while the first dialog
+# is up is what leaves OK sitting there doing nothing.
+_perm_lock = threading.Lock()
+
+
 def ask_permission(path):
     """Touch the folder so the system puts its dialog up, and wait for an answer.
 
@@ -1473,20 +1478,46 @@ def ask_permission(path):
     give the person time to answer. A dialog that is still on screen is not a
     no. Recording that timeout as declined is how Allow selected walked on to
     the next folder while the first question was still waiting.
+
+    On a Mac that knock has to happen on the main thread. Asked from the
+    request thread, the dialog appears and OK never gets through.
     """
+    if not _perm_lock.acquire(blocking=False):
+        return {"ok": False, "pending": True}
+
     outcome = {}
+    done = threading.Event()
 
     def run():
         try:
+            # The question is a Mac system dialog. It only accepts OK when the
+            # app is in front and this call is on the main thread.
+            if not WINDOWS:
+                try:
+                    from AppKit import NSApplication
+                    NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+                except Exception:
+                    pass
             os.listdir(path)
             outcome["got"] = True
         except OSError:
             outcome["got"] = False
+        finally:
+            done.set()
+            _perm_lock.release()
 
-    waiter = threading.Thread(target=run, daemon=True)
-    waiter.start()
-    waiter.join(45)
-    if "got" not in outcome:
+    scheduled = False
+    if not WINDOWS and threading.current_thread() is not threading.main_thread():
+        try:
+            from PyObjCTools import AppHelper
+            AppHelper.callAfter(run)
+            scheduled = True
+        except Exception:
+            scheduled = False
+    if not scheduled:
+        run()
+
+    if not done.wait(120):
         return {"ok": False, "pending": True}
 
     got = outcome["got"]

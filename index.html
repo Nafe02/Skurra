@@ -1936,7 +1936,7 @@ $("#permall").onclick = async () => {
     const n = perms.indexOf(f);
     const chip = $(`.permrow[data-n="${n}"]`);
     if (chip) chip.className = "permrow asking";
-    $("#permnow").textContent = `Your Mac is asking about ${f.name}. The question may be behind this window.`;
+    $("#permnow").textContent = `Your Mac is asking about ${f.name}. Press OK on that question.`;
     try {
       const r = await (await fetch("/api/permission-ask",
         { method: "POST", body: JSON.stringify({ path: f.path }) })).json();
