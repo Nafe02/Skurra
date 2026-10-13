@@ -42,13 +42,13 @@ h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 .stage {
   position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
   padding: 32px 20px; color: #f4f7f6;
-  background: radial-gradient(80% 60% at 50% 38%, #1c2428 0%, #101416 72%);
+  background: #07090b;
   animation: rise .35s ease;
 }
 .stage[hidden] { display: none; }
 .stage[data-mode="complete"],
 .stage[data-mode="done"] {
-  background: radial-gradient(90% 80% at 18% 42%, #4ea85a 0%, #1f7a38 46%, #0d3f22 100%);
+  background: #07140f;
 }
 .stagein { width: min(560px, 100%); text-align: center; }
 .scene { height: 360px; display: none; position: relative; }
@@ -57,26 +57,19 @@ h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 .stage[data-mode="empty"] .scene-empty,
 .stage[data-mode="complete"] .scene-rocket,
 .stage[data-mode="done"] .scene-done { display: block; }
-.gauge { width: min(280px, 70vw); height: min(280px, 70vw); margin: 8px auto 0; position: relative; }
+.gauge { width: min(300px, 72vw); height: min(300px, 72vw); margin: 8px auto 0; position: relative; }
 .gauge svg { width: 100%; height: 100%; display: block; }
 .ringtrack {
-  fill: none; stroke: rgba(62, 230, 162, .22); stroke-width: 4;
+  fill: none; stroke: #1f8f5c; stroke-width: 8;
 }
 .scanfill {
-  fill: none; stroke: #3ee6a2; stroke-width: 5; stroke-linecap: round;
+  fill: none; stroke: #3ee6a2; stroke-width: 8; stroke-linecap: butt;
   stroke-dasharray: 578.05; stroke-dashoffset: 578.05;
   transform: rotate(-90deg); transform-origin: 110px 110px;
 }
-.spinarc {
-  fill: none; stroke: #f4fff9; stroke-width: 5; stroke-linecap: round;
-  stroke-dasharray: 48 530;
-  transform-origin: 110px 110px;
-  animation: spinring .85s linear infinite;
-}
-@keyframes spinring { to { transform: rotate(360deg); } }
-.gaugen { display: grid; place-items: center; margin-top: 6px; }
+.gaugen { display: grid; place-items: center; margin-top: 10px; }
 .gaugen b {
-  font-size: 34px; font-weight: 720; letter-spacing: -0.04em;
+  font-size: 42px; font-weight: 760; letter-spacing: -0.05em;
   font-variant-numeric: tabular-nums; color: #3ee6a2;
 }
 .welcome {
@@ -106,7 +99,7 @@ button.scanbig {
 }
 button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
 .brushart, .binart { width: min(520px, 100%); height: 320px; display: block; margin: 0 auto; }
-.rocketart { width: min(280px, 70vw); height: 340px; display: block; margin: 0 auto; filter: drop-shadow(0 18px 24px rgba(0,0,0,.28)); }
+.rocketart { width: min(260px, 64vw); height: 320px; display: block; margin: 0 auto; }
 .brush { transform-origin: 49% 4%; animation: dusting 1.5s ease-in-out infinite; }
 .ash { animation: ash 1.5s ease-in infinite; }
 .ash.d2 { animation-delay: .28s; }
@@ -120,17 +113,14 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
 .paper.d3 { animation-delay: .55s; }
 .paper.d4 { animation-delay: .8s; }
 .orb {
-  width: 210px; height: 210px; margin: 40px auto 0; border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, rgba(255,255,255,.55), transparent 36%),
-    radial-gradient(circle at 50% 58%, #b7f0c4 0%, #3ecf67 42%, #149447 100%);
-  box-shadow: inset 0 -18px 30px rgba(0,40,20,.28), 0 24px 50px rgba(0,0,0,.22);
-  display: grid; place-items: center; color: #fff; font-size: 84px; line-height: 1;
+  width: 168px; height: 168px; margin: 64px auto 0; border-radius: 50%;
+  background: #10281c; border: 3px solid #3ee6a2;
+  display: grid; place-items: center; color: #3ee6a2; font-size: 72px; font-weight: 700; line-height: 1;
 }
-.stagetitle { margin: 18px 0 0; font-size: 36px; font-weight: 720; letter-spacing: -0.045em; }
-.stagesub { margin: 6px 0 0; color: rgba(244,247,246,.62); font-size: 15px; min-height: 22px;
+.stagetitle { margin: 18px 0 0; font-size: 36px; font-weight: 760; letter-spacing: -0.05em; }
+.stagesub { margin: 6px 0 0; color: #c5cec9; font-size: 15px; min-height: 22px;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.reelbig { margin: 8px 0 0; font-size: 40px; font-weight: 650; letter-spacing: -0.03em; }
+.reelbig { margin: 8px 0 0; font-size: 44px; font-weight: 760; letter-spacing: -0.05em; color: #3ee6a2; }
 .reellist { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 0; margin-top: 14px; }
 .stage:not([data-mode="done"]):not([data-mode="complete"]) .reelbig,
 .stage:not([data-mode="done"]) .reellist,
@@ -138,27 +128,27 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
 .stage[data-mode="complete"] .stagedone,
 .stage[data-mode="done"] .stagedone {
   display: inline-flex; margin-top: 22px;
-  background: #fff; color: #14301c; border: 0; border-radius: 12px;
-  padding: 10px 22px; font-weight: 600;
+  background: #3ee6a2; color: #04150e; border: 0; border-radius: 999px;
+  padding: 12px 28px; font-weight: 750; letter-spacing: -0.02em;
 }
 .stage[data-mode="complete"] .stagein,
 .stage[data-mode="done"] .stagein {
   width: min(820px, 100%);
   display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
-  gap: 8px 36px; align-items: center; text-align: left;
-  padding: 42px 48px 36px; border-radius: 28px;
-  background: linear-gradient(160deg, rgba(255,255,255,.20), rgba(255,255,255,.06));
-  border: 1px solid rgba(255,255,255,.22);
-  box-shadow: 0 30px 80px rgba(0,0,0,.22);
+  gap: 8px 28px; align-items: center; text-align: left;
+  padding: 36px 40px 32px; border-radius: 16px;
+  background: #10241b;
+  border: 1px solid rgba(255,255,255,.32);
+  box-shadow: 0 16px 40px rgba(0,0,0,.45);
 }
 .stage[data-mode="complete"] .scene,
 .stage[data-mode="done"] .scene { grid-column: 1; grid-row: 1 / span 5; height: 320px; margin: 0; }
 .stage[data-mode="complete"] .stagetitle,
-.stage[data-mode="done"] .stagetitle { grid-column: 2; margin: 0; font-size: 40px; align-self: end; }
+.stage[data-mode="done"] .stagetitle { grid-column: 2; margin: 0; font-size: 44px; font-weight: 760; letter-spacing: -0.05em; color: #fff; align-self: end; }
 .stage[data-mode="complete"] .reelbig,
-.stage[data-mode="done"] .reelbig { grid-column: 2; margin: 0; font-size: 28px; }
+.stage[data-mode="done"] .reelbig { grid-column: 2; margin: 0; font-size: 40px; color: #3ee6a2; }
 .stage[data-mode="complete"] .stagesub,
-.stage[data-mode="done"] .stagesub { grid-column: 2; color: rgba(255,255,255,.84); white-space: normal; }
+.stage[data-mode="done"] .stagesub { grid-column: 2; color: #d5ddd9; white-space: normal; }
 .stage[data-mode="done"] .reellist { grid-column: 2; justify-content: flex-start; }
 .stage[data-mode="complete"] .stagedone,
 .stage[data-mode="done"] .stagedone { grid-column: 2; justify-self: end; margin-top: 8px; }
@@ -209,8 +199,9 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
   18% { opacity: 1; }
   100% { transform: translateY(78px) rotate(12deg); opacity: 0; }
 }
-.chip { font-size: 13px; padding: 6px 12px; border-radius: 99px; background: var(--card);
-        border: 1px solid var(--rule); animation: peel 1.15s ease forwards; }
+.chip { font-size: 13px; font-weight: 650; padding: 6px 12px; border-radius: 8px;
+        background: #0c1c16; color: #f4fff8; border: 1px solid #3ee6a2;
+        animation: peel 1.15s ease forwards; }
 @keyframes peel {
   0% { opacity: 0; transform: translateY(10px); }
   18% { opacity: 1; transform: none; }
@@ -221,7 +212,7 @@ mark { background: transparent; color: inherit; font-weight: 650;
        box-shadow: inset 0 -0.4em 0 rgba(47, 107, 94, .28); }
 .row.hit { outline: 2px solid var(--patina); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
-  .brush, .ash, .rocket, .flame, .lid, .paper, .chip, .stage, .sun.rise, .spinarc { animation: none; }
+  .brush, .ash, .rocket, .flame, .lid, .paper, .chip, .stage, .sun.rise { animation: none; }
 }
 .state b { display: block; font-weight: 400; }
 .state em { display: block; font-style: normal; font-size: 11px;
@@ -567,9 +558,9 @@ body.welcoming .update.on {
           <svg viewBox="0 0 220 220">
             <circle class="ringtrack" cx="110" cy="110" r="92"/>
             <circle id="scanfill" class="scanfill" cx="110" cy="110" r="92"/>
-            <circle class="spinarc" cx="110" cy="110" r="92"/>
           </svg>
         </div>
+        <div class="gaugen"><b id="stagepct">0%</b></div>
       </div>
       <div class="scene scene-clean" aria-hidden="true">
         <svg class="brushart" viewBox="40 0 220 300" aria-hidden="true">
@@ -671,16 +662,16 @@ body.welcoming .update.on {
           <g class="rocket">
             <path class="flame" d="M116 252c-6 28-4 62 24 96 28-34 30-68 24-96-8 14-40 14-48 0z" fill="url(#flameg)"/>
             <path class="flame" d="M128 258c-2 18 0 40 12 62 12-22 14-44 12-62-4 8-20 8-24 0z" fill="#ffe38a"/>
-            <path d="M104 188 C62 206 46 248 58 272 L114 230 Z" fill="url(#redg)"/>
-            <path d="M176 188 C218 206 234 248 222 272 L166 230 Z" fill="url(#redg2)"/>
-            <path d="M116 228 h48 l6 22 h-60 z" fill="url(#nozzle)"/>
-            <path d="M112 118 C112 168 108 214 116 236 h48 C172 214 168 168 168 118 Z" fill="url(#bodyg)"/>
-            <path d="M118 128 C118 160 116 190 120 214 h16 C132 186 130 156 128 128 Z" fill="rgba(255,255,255,.55)"/>
-            <path d="M140 28 C172 62 184 96 176 124 H104 C96 96 108 62 140 28 Z" fill="url(#redg)"/>
-            <path d="M128 46 C134 70 132 92 128 108 h10 C140 88 138 64 134 46 Z" fill="rgba(255,255,255,.4)"/>
-            <circle cx="140" cy="168" r="24" fill="#d5dee8"/>
-            <circle cx="140" cy="168" r="18" fill="url(#winglass)"/>
-            <ellipse cx="133" cy="161" rx="6" ry="3.5" fill="rgba(255,255,255,.75)"/>
+            <path d="M104 188 C62 206 46 248 58 272 L114 230 Z" fill="url(#redg)" stroke="#3d0c0c" stroke-width="1.6"/>
+            <path d="M176 188 C218 206 234 248 222 272 L166 230 Z" fill="url(#redg2)" stroke="#3d0c0c" stroke-width="1.6"/>
+            <path d="M116 228 h48 l6 22 h-60 z" fill="url(#nozzle)" stroke="#101418" stroke-width="1.4"/>
+            <path d="M112 118 C112 168 108 214 116 236 h48 C172 214 168 168 168 118 Z" fill="url(#bodyg)" stroke="#1c242c" stroke-width="1.8"/>
+            <path d="M118 128 C118 160 116 190 120 214 h16 C132 186 130 156 128 128 Z" fill="#fff"/>
+            <path d="M140 28 C172 62 184 96 176 124 H104 C96 96 108 62 140 28 Z" fill="url(#redg)" stroke="#3d0c0c" stroke-width="1.6"/>
+            <path d="M128 46 C134 70 132 92 128 108 h10 C140 88 138 64 134 46 Z" fill="#fff"/>
+            <circle cx="140" cy="168" r="24" fill="#e8eef4" stroke="#1c242c" stroke-width="1.6"/>
+            <circle cx="140" cy="168" r="18" fill="url(#winglass)" stroke="#0a3a66" stroke-width="1.4"/>
+            <ellipse cx="133" cy="161" rx="6" ry="3.5" fill="#fff"/>
           </g>
         </svg>
       </div>
