@@ -1,5 +1,5 @@
 {
-  "version": "1.22.3",
+  "version": "1.22.4",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "On a Mac, OK on the folder question now lets Skurra continue. On Windows, Python stays beside the app. Update now replaces this copy and reopens it."
+  "notes": "Skurra opens on a welcome page. Scan starts straight away, and the ring keeps turning. The folder question no longer covers the app. Restarting after an update is quicker."
 }

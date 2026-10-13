@@ -57,22 +57,47 @@ h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 .stage[data-mode="empty"] .scene-empty,
 .stage[data-mode="complete"] .scene-rocket,
 .stage[data-mode="done"] .scene-done { display: block; }
-.gauge { width: min(340px, 78vw); height: min(340px, 78vw); margin: 8px auto 0; position: relative; }
+.gauge { width: min(280px, 70vw); height: min(280px, 70vw); margin: 8px auto 0; position: relative; }
 .gauge svg { width: 100%; height: 100%; display: block; }
-.gaugeglow, .gaugearc {
-  fill: none; stroke: url(#ringg); stroke-linecap: round;
-  stroke-dasharray: 578.05; stroke-dashoffset: 578.05;
-  transform: rotate(-90deg); transform-origin: 110px 110px;
+.ringtrack {
+  fill: none; stroke: rgba(57, 255, 120, .16); stroke-width: 3;
 }
-.gaugeglow { stroke-width: 22; opacity: .85; filter: url(#bloom); }
-.gaugearc { stroke-width: 11; }
-#ticks line { stroke: rgba(255,255,255,.22); stroke-width: 1.7; stroke-linecap: butt; }
-#ticks line.on { stroke: #d8ff55; }
-.gaugen { position: absolute; inset: 0; display: grid; place-items: center; }
+.spinarc {
+  fill: none; stroke: #39ff6a; stroke-width: 3.5; stroke-linecap: round;
+  stroke-dasharray: 78 500;
+  filter: drop-shadow(0 0 6px #39ff6a) drop-shadow(0 0 14px rgba(57, 255, 106, .75));
+  transform-origin: 110px 110px;
+  animation: spinring 1.05s linear infinite;
+}
+@keyframes spinring { to { transform: rotate(360deg); } }
+.gaugen { display: grid; place-items: center; margin-top: 6px; }
 .gaugen b {
-  font-size: 64px; font-weight: 700; letter-spacing: -0.045em;
-  font-variant-numeric: tabular-nums; color: #39f56a;
-  text-shadow: 0 0 22px rgba(57, 245, 106, .45);
+  font-size: 28px; font-weight: 600; letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums; color: #39ff6a;
+  text-shadow: 0 0 18px rgba(57, 255, 106, .8);
+}
+.welcome {
+  position: fixed; inset: 0; z-index: 35; display: grid; place-items: center;
+  padding: 28px 18px; color: #f4fff8;
+  background:
+    radial-gradient(50% 40% at 50% 42%, rgba(47, 206, 134, .28), transparent 70%),
+    radial-gradient(80% 70% at 80% 10%, #145c78 0%, #0b2430 42%, #071018 100%);
+}
+.welcome[hidden] { display: none; }
+.welcomecard { width: min(440px, 100%); text-align: center; }
+.welcomemon { width: min(320px, 78vw); height: auto; display: block; margin: 0 auto 8px;
+              filter: drop-shadow(0 24px 40px rgba(0,0,0,.35)); }
+.welcomecard h2 { margin: 8px 0 6px; font-size: 34px; font-weight: 650; letter-spacing: -0.03em; color: #fff; }
+.welcomecard p { margin: 0; color: rgba(244, 255, 248, .78); font-size: 16px; }
+button.scanbig {
+  margin-top: 26px; background: #2fce86; color: #062116; border: 0; border-radius: 999px;
+  padding: 12px 42px; font-size: 17px; font-weight: 700;
+  box-shadow: 0 10px 30px rgba(47, 206, 134, .35);
+}
+button.scanbig:hover { border-color: transparent; filter: brightness(1.05); }
+.welcomeskip {
+  display: block; margin: 16px auto 0; background: none; border: 0; color: rgba(255,255,255,.72);
+  text-decoration: underline; padding: 6px 10px;
 }
 .brushart, .binart { width: min(520px, 100%); height: 320px; display: block; margin: 0 auto; }
 .rocketart { width: min(280px, 70vw); height: 340px; display: block; margin: 0 auto; filter: drop-shadow(0 18px 24px rgba(0,0,0,.28)); }
@@ -190,7 +215,7 @@ mark { background: transparent; color: inherit; font-weight: 650;
        box-shadow: inset 0 -0.4em 0 rgba(47, 107, 94, .28); }
 .row.hit { outline: 2px solid var(--patina); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
-  .brush, .ash, .rocket, .flame, .lid, .paper, .chip, .stage, .sun.rise { animation: none; }
+  .brush, .ash, .rocket, .flame, .lid, .paper, .chip, .stage, .sun.rise, .spinarc { animation: none; }
 }
 .state b { display: block; font-weight: 400; }
 .state em { display: block; font-style: normal; font-size: 11px;
@@ -380,6 +405,10 @@ h3.important { color: #b5643d; }
           padding: 14px 16px; border-radius: var(--round);
           background: var(--card); border: 1px solid var(--patina); }
 .update.on { display: flex; }
+body.welcoming .update.on {
+  position: fixed; z-index: 46; top: 16px; left: 50%;
+  transform: translateX(-50%); width: min(700px, calc(100% - 32px));
+}
 .ask p { white-space: pre-wrap; max-height: 240px; overflow: auto; }
 .sheetback {
   position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
@@ -434,6 +463,32 @@ h3.important { color: #b5643d; }
 </style>
 </head>
 <body>
+<div class="welcome" id="welcome" hidden>
+  <div class="welcomecard">
+    <svg class="welcomemon" viewBox="0 0 320 210" aria-hidden="true">
+      <defs>
+        <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#16382c"/>
+          <stop offset="1" stop-color="#0c1c18"/>
+        </linearGradient>
+        <linearGradient id="bezel" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3c4a55"/>
+          <stop offset="1" stop-color="#1b242c"/>
+        </linearGradient>
+      </defs>
+      <rect x="28" y="16" width="264" height="156" rx="18" fill="url(#bezel)"/>
+      <rect x="42" y="30" width="236" height="128" rx="8" fill="url(#screen)"/>
+      <path d="M62 132 C110 48 200 40 258 78" fill="none" stroke="#7dffb2" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="258" cy="78" r="6" fill="#d9ffe8"/>
+      <rect x="136" y="172" width="48" height="12" rx="3" fill="#2a353e"/>
+      <rect x="112" y="182" width="96" height="8" rx="3" fill="#1b242c"/>
+    </svg>
+    <h2>Welcome to Skurra</h2>
+    <p>Start with a scan. You can keep using Skurra either way.</p>
+    <button class="scanbig" id="welcomescan" type="button">Scan</button>
+    <button class="welcomeskip" id="welcomeskip" type="button">Use Skurra</button>
+  </div>
+</div>
 <main>
   <h1>Skurra: AI Storage Cleaner</h1>
   <p class="warn" id="warn"></p>
@@ -497,27 +552,11 @@ h3.important { color: #b5643d; }
       <div class="scene scene-scan" aria-hidden="true">
         <div class="gauge">
           <svg viewBox="0 0 220 220">
-            <defs>
-              <linearGradient id="ringg" x1="28" y1="180" x2="192" y2="36" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#f4ff6a"/>
-                <stop offset=".42" stop-color="#8dff45"/>
-                <stop offset="1" stop-color="#1dff88"/>
-              </linearGradient>
-              <filter id="bloom" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="5" result="b"/>
-                <feMerge>
-                  <feMergeNode in="b"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            </defs>
-            <circle cx="110" cy="110" r="92" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="16"/>
-            <g id="ticks"></g>
-            <circle id="scanglow" class="gaugeglow" cx="110" cy="110" r="92"/>
-            <circle id="scanring" class="gaugearc" cx="110" cy="110" r="92"/>
+            <circle class="ringtrack" cx="110" cy="110" r="92"/>
+            <circle class="spinarc" cx="110" cy="110" r="92"/>
           </svg>
-          <div class="gaugen"><b id="stagepct">0%</b></div>
         </div>
+        <div class="gaugen"><b id="stagepct">0%</b></div>
       </div>
       <div class="scene scene-clean" aria-hidden="true">
         <svg class="brushart" viewBox="90 -16 230 290">
@@ -828,33 +867,9 @@ const meta = (list) => list.length ? `${list.length} item${list.length === 1 ? "
 
 let poller = null, frame = null, shown = 0, target = 0;
 
-function buildTicks() {
-  const g = $("#ticks");
-  if (!g || g.childElementCount) return;
-  const n = 96;
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", (110 + Math.cos(a) * 54).toFixed(2));
-    line.setAttribute("y1", (110 + Math.sin(a) * 54).toFixed(2));
-    line.setAttribute("x2", (110 + Math.cos(a) * 66).toFixed(2));
-    line.setAttribute("y2", (110 + Math.sin(a) * 66).toFixed(2));
-    g.appendChild(line);
-  }
-}
-
 function paint() {
   const gap = target - shown;
   shown = Math.abs(gap) < 0.05 ? target : shown + gap * 0.14;
-  const off = String(578.05 * (1 - shown / 100));
-  const ring = $("#scanring");
-  const glow = $("#scanglow");
-  if (ring) ring.style.strokeDashoffset = off;
-  if (glow) glow.style.strokeDashoffset = off;
-  buildTicks();
-  const ticks = document.querySelectorAll("#ticks line");
-  const lit = Math.round(shown / 100 * ticks.length);
-  ticks.forEach((t, i) => t.classList.toggle("on", i < lit));
   const pct = $("#stagepct");
   if (pct && $("#stage").dataset.mode === "scan") pct.textContent = Math.round(shown) + "%";
   frame = requestAnimationFrame(paint);
@@ -1901,12 +1916,9 @@ async function loadPerms(force) {
     // no longer true. Showing it as granted would claim access we do not have.
     perms = d.stale ? d.folders.map(f => ({ ...f, state: "unknown" })) : d.folders;
     drawPerms();
-    // Lead with it when nothing has been decided, and again after an update:
-    // the new build is a different app to macOS, so the grants are gone and
-    // staying quiet would leave Skurra unable to see anything, silently.
-    if (force || !d.asked || d.stale) $("#sheetback").hidden = false;
-    if (d.stale && !force) $("#permnow").textContent =
-      "Updating resets these, so your Mac needs to be asked again.";
+    // Never cover the app with this on launch. Sitting here while macOS
+    // shows its own question is what left OK on screen for so long.
+    if (force) $("#sheetback").hidden = false;
   } catch (e) {}
 }
 
@@ -1930,6 +1942,9 @@ $("#permall").onclick = async () => {
   const wanted = perms.filter((f, n) => boxes[n] && boxes[n].checked);
   if (!wanted.length) { closeSheet(); return; }
 
+  // Close our sheet first. The Mac question can then sit on its own,
+  // and the rest of Skurra stays usable.
+  $("#sheetback").hidden = true;
   $("#permall").disabled = true;
   let waiting = false;
   for (const f of wanted) {
@@ -1966,9 +1981,20 @@ $("#permall").onclick = async () => {
 
 $("#permlink").onclick = () => loadPerms(true);
 
+function showWelcome() {
+  $("#welcome").hidden = false;
+  document.body.classList.add("welcoming");
+}
+function hideWelcome() {
+  $("#welcome").hidden = true;
+  document.body.classList.remove("welcoming");
+}
+$("#welcomescan").onclick = () => { hideWelcome(); scan(); };
+$("#welcomeskip").onclick = hideWelcome;
+
 speak();
+showWelcome();
 checkUpdate().then(loadBin).catch(() => {});
-loadPerms(false).catch(() => {});
 lastUpdateReport().catch(() => {});      // know which OS we are on before wording the bin
 loadLog();
 </script>

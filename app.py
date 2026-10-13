@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.3"
+VERSION = "1.22.4"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -104,19 +104,25 @@ FOLDERS = APPDATA_DIRS + [CACHES_DIR]
 
 # The places worth looking through. Everything here belongs to the user.
 def allowed_folder(path):
-    """Did the person allow this one? Unknown counts as yes until they decide."""
+    """Did the person allow this one?
+
+    On a Mac, looking inside Desktop or Downloads is what makes the system
+    question appear. Unknown is not a yes: touching it would put that
+    question up and hold the app until they answer.
+    """
+    if WINDOWS:
+        return True
     state = load_perms()
-    if not state["asked"] or state["version"] != VERSION:
-        return True                       # never asked, or the answer is stale
-    return state["folders"].get(str(path), "unknown") != "declined"
+    return state["folders"].get(str(path)) == "granted"
 
 
 def disk_roots():
     names = ["Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music"]
     if WINDOWS:
         names = ["Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music"]
-    out = [HOME / n for n in names if (HOME / n).is_dir()]
-    return [HOME] + out
+    # Do not stat these. On a Mac, even asking "is Desktop there?" can
+    # raise the system question and leave OK sitting on screen.
+    return [HOME] + [HOME / n for n in names]
 
 # Why Skurra asks for each of these. True of what it actually does: Downloads
 # feeds the Installation files list, the rest feed the Disk space view.
@@ -1517,7 +1523,7 @@ def ask_permission(path):
     if not scheduled:
         run()
 
-    if not done.wait(120):
+    if not done.wait(20):
         return {"ok": False, "pending": True}
 
     got = outcome["got"]
@@ -1754,7 +1760,7 @@ try {{
       $h.Close(); break
     }} catch {{ Start-Sleep -Milliseconds 500 }}
   }}
-  Start-Sleep -Seconds 2
+  Start-Sleep -Milliseconds 300
 
   if ($replace) {{
     Copy-Item -LiteralPath $target -Destination $backup -Force -ErrorAction SilentlyContinue
@@ -1821,19 +1827,15 @@ Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
             mount.mkdir()
             subprocess.run(["hdiutil", "attach", str(dmg), "-mountpoint", str(mount),
                             "-nobrowse", "-quiet"], check=True, timeout=120)
-            staged = work / "Skurra.app"
-            subprocess.run(["cp", "-R", str(mount / "Skurra.app"), str(staged)],
-                           check=True, timeout=300)
-            subprocess.run(["hdiutil", "detach", str(mount), "-quiet"], timeout=60)
-            if not (staged / "Contents/MacOS/Skurra").exists():
-                raise OSError("the downloaded app looks incomplete")
-
-            # Copy it into place NOW, while the window is still up and the
-            # banner still says something. Once Skurra quits there is nothing
-            # on screen, so every second of that gap looks like a crash.
+            # One copy, straight to the spot beside the live app. A second
+            # copy was a full extra wait before the window could come back.
             beside = Path(str(target) + ".new")
             subprocess.run(["rm", "-rf", str(beside)], timeout=60)
-            subprocess.run(["cp", "-R", str(staged), str(beside)], check=True, timeout=300)
+            subprocess.run(["cp", "-R", str(mount / "Skurra.app"), str(beside)],
+                           check=True, timeout=300)
+            subprocess.run(["hdiutil", "detach", str(mount), "-quiet"], timeout=60)
+            if not (beside / "Contents/MacOS/Skurra").exists():
+                raise OSError("the downloaded app looks incomplete")
 
             script = Path(tempfile.gettempdir()) / f"skurra-swap-{os.getpid()}.sh"
             # All that is left after Skurra quits is two renames, which are
@@ -1846,7 +1848,7 @@ beside={sh_quote(str(beside))}
 work={sh_quote(str(work))}
 result={sh_quote(result)}
 lsreg=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
-for i in $(seq 1 120); do kill -0 {os.getpid()} 2>/dev/null || break; sleep 0.5; done
+for i in $(seq 1 40); do kill -0 {os.getpid()} 2>/dev/null || break; sleep 0.1; done
 mkdir -p "$(dirname "$result")"
 ok=no
 rm -rf "$target.old"
@@ -1859,23 +1861,21 @@ else
 fi
 back=no
 if [ "$ok" = yes ]; then
-  # Start the binary straight off. Going through "open" on a bundle that
-  # has just been replaced is unreliable: it returns at once and then may
-  # never launch anything, which is what left the window missing.
-  "$lsreg" -f "$target" 2>/dev/null &
+  # Open the new copy at once. Registering it with Launch Services first
+  # used to stall the relaunch for half a minute.
   "$target/Contents/MacOS/Skurra" >/dev/null 2>&1 &
-  for i in $(seq 1 30); do
+  for i in $(seq 1 25); do
     pgrep -f "$target/Contents/MacOS/" >/dev/null 2>&1 && back=yes && break
-    sleep 0.5
+    sleep 0.12
   done
   if [ "$back" = no ]; then
-    open -n "$target" 2>/dev/null          # second chance, the long way round
-    for i in $(seq 1 30); do
+    open -n "$target" 2>/dev/null
+    for i in $(seq 1 15); do
       pgrep -f "$target/Contents/MacOS/" >/dev/null 2>&1 && back=yes && break
-      sleep 0.5
+      sleep 0.12
     done
   fi
-  osascript -e 'tell application "Skurra" to activate' 2>/dev/null
+  "$lsreg" -f "$target" >/dev/null 2>&1 &
 fi
 if [ "$ok" = yes ] && [ "$back" = yes ]; then
   printf '%s' {sh_quote(note_json(True, ""))} > "$result"
@@ -1898,12 +1898,12 @@ rm -rf "$work" "$0"
             raise OSError(f"Skurra wrote an update helper it cannot run: {complaint.strip()}")
 
         helper = subprocess.Popen(launch[0], **launch[1])
-        time.sleep(1.0)
+        time.sleep(0.2)
         if helper.poll() is not None:
             raise OSError("the update helper stopped before it could do anything")
 
         installing.update(stage="restarting")
-        threading.Timer(1.0, lambda: os._exit(0)).start()
+        threading.Timer(0.25, lambda: os._exit(0)).start()
     except Exception as e:
         installing.update(stage="failed", error=str(e))
 
