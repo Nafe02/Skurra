@@ -1,5 +1,5 @@
 {
-  "version": "1.22.4",
+  "version": "1.22.5",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Skurra opens on a welcome page. Scan starts straight away, and the ring keeps turning. The folder question no longer covers the app. Restarting after an update is quicker."
+  "notes": "Scan no longer stops on the Downloads question. The welcome page and the rest of Skurra are sharper, and the ring fills as the scan moves."
 }

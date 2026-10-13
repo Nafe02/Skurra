@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.4"
+VERSION = "1.22.5"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -656,6 +656,10 @@ def measure(path, tick=None, deadline=None):
 
 def scan():
     now = time.time()
+    # The ring should leave 0% while the list of folders is still being built.
+    progress["done"] = 1
+    progress["total"] = 24
+    progress["where"] = "Starting"
     ids, names = installed_apps()
     stuck_paths = load_stuck()
     guarded = load_guarded()
@@ -714,9 +718,12 @@ def scan():
                 continue
             targets.append((item, "Logs", "log"))
 
-    # installers sitting in Downloads long after they were used
+    # installers sitting in Downloads long after they were used.
+    # On a Mac, exists() itself raises the system question and the scan
+    # waits there at 0%. Ask permission first, and do not touch the folder
+    # until the answer is already yes.
     downloads = HOME / "Downloads"
-    if downloads.exists() and allowed_folder(downloads):
+    if allowed_folder(downloads):
         try:
             entries = list(downloads.iterdir())
         except OSError:
@@ -762,8 +769,10 @@ def scan():
         if not weights[key]:
             weights[key] = spare
 
+    # Hand the same early sliver over to the real total, so the ring stays
+    # off 0% instead of jumping backwards when measuring starts.
     progress["total"] = sum(weights.values()) or 1
-    progress["done"] = 0
+    progress["done"] = progress["total"] * 0.04
 
     # Every app's last-opened date in one go, rather than one call each.
     app_dates = last_used_many([i for i, w, k in targets
@@ -1119,7 +1128,8 @@ def allowed(path):
     if any(p.parent == d.resolve() for d in LOG_DIRS if d.exists()):
         return True, ""
 
-    if p.parent == (HOME / "Downloads").resolve() and p.suffix.lower() in INSTALLER_EXT:
+    downloads = HOME / "Downloads"
+    if p.parent == downloads and p.suffix.lower() in INSTALLER_EXT:
         return True, ""
 
     if p.parent in appdatas:
@@ -1143,8 +1153,14 @@ def allowed(path):
             return True, ""
 
     # Anything of the user's own, inside their home folder. Trash only.
+    # Compare the names only. resolve() on Desktop or Downloads is enough
+    # to raise the Mac question, and this check runs while deleting.
     if inside_home(p):
-        if p in [r.resolve() for r in disk_roots()]:
+        protected = {
+            "Desktop", "Documents", "Downloads", "Pictures",
+            "Movies", "Music", "Videos",
+        }
+        if p == HOME or (p.name in protected and p.parent == HOME):
             return False, "that is a whole folder like Documents"
         if any(str(p).lower().startswith(str(d.resolve()).lower() + os.sep) for d in APPDATA_DIRS):
             return False, "app data, use the App data list"

@@ -19,8 +19,8 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #101416; --card: #1b2123; --ink: #f4f7f6;
-    --dim: #9aa39f; --rule: #2e3638; --patina: #2fce86;
+    --paper: #07090b; --card: #12171a; --ink: #f4f7f5;
+    --dim: #c5cec9; --rule: #3a454a; --patina: #3ee6a2;
   }
 }
 
@@ -34,7 +34,7 @@ body {
 main { max-width: 700px; margin: 0 auto; transition: max-width .25s ease; }
 body.wide main { max-width: 1120px; }
 @media (max-width: 1180px) { body.wide main { max-width: 100%; } }
-h1 { margin: 0; font-size: 28px; font-weight: 650; letter-spacing: -0.035em; }
+h1 { margin: 0; font-size: 32px; font-weight: 720; letter-spacing: -0.05em; }
 .note { margin: 6px 0 var(--step); color: var(--dim); font-size: 14px; }
 h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 .sub { color: var(--dim); font-size: 13px; margin: 0 0 12px; }
@@ -60,45 +60,56 @@ h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 .gauge { width: min(280px, 70vw); height: min(280px, 70vw); margin: 8px auto 0; position: relative; }
 .gauge svg { width: 100%; height: 100%; display: block; }
 .ringtrack {
-  fill: none; stroke: rgba(57, 255, 120, .16); stroke-width: 3;
+  fill: none; stroke: rgba(62, 230, 162, .22); stroke-width: 4;
+}
+.scanfill {
+  fill: none; stroke: #3ee6a2; stroke-width: 5; stroke-linecap: round;
+  stroke-dasharray: 578.05; stroke-dashoffset: 578.05;
+  transform: rotate(-90deg); transform-origin: 110px 110px;
 }
 .spinarc {
-  fill: none; stroke: #39ff6a; stroke-width: 3.5; stroke-linecap: round;
-  stroke-dasharray: 78 500;
-  filter: drop-shadow(0 0 6px #39ff6a) drop-shadow(0 0 14px rgba(57, 255, 106, .75));
+  fill: none; stroke: #f4fff9; stroke-width: 5; stroke-linecap: round;
+  stroke-dasharray: 48 530;
   transform-origin: 110px 110px;
-  animation: spinring 1.05s linear infinite;
+  animation: spinring .85s linear infinite;
 }
 @keyframes spinring { to { transform: rotate(360deg); } }
 .gaugen { display: grid; place-items: center; margin-top: 6px; }
 .gaugen b {
-  font-size: 28px; font-weight: 600; letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums; color: #39ff6a;
-  text-shadow: 0 0 18px rgba(57, 255, 106, .8);
+  font-size: 34px; font-weight: 720; letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums; color: #3ee6a2;
 }
 .welcome {
   position: fixed; inset: 0; z-index: 35; display: grid; place-items: center;
-  padding: 28px 18px; color: #f4fff8;
-  background:
-    radial-gradient(50% 40% at 50% 42%, rgba(47, 206, 134, .28), transparent 70%),
-    radial-gradient(80% 70% at 80% 10%, #145c78 0%, #0b2430 42%, #071018 100%);
+  padding: 28px 18px; color: #f7faf8;
+  background: #050709;
 }
 .welcome[hidden] { display: none; }
-.welcomecard { width: min(440px, 100%); text-align: center; }
-.welcomemon { width: min(320px, 78vw); height: auto; display: block; margin: 0 auto 8px;
-              filter: drop-shadow(0 24px 40px rgba(0,0,0,.35)); }
-.welcomecard h2 { margin: 8px 0 6px; font-size: 34px; font-weight: 650; letter-spacing: -0.03em; color: #fff; }
-.welcomecard p { margin: 0; color: rgba(244, 255, 248, .78); font-size: 16px; }
+.welcomecard {
+  width: min(440px, 100%); text-align: center;
+  padding: 36px 34px 28px; border-radius: 16px;
+  background: #101518;
+  border: 1px solid rgba(255,255,255,.34);
+  box-shadow: 0 16px 40px rgba(0,0,0,.55);
+}
+.eyebrow {
+  margin: 0 0 16px; font-size: 12px; font-weight: 700; letter-spacing: .32em; color: #3ee6a2;
+}
+.welcomemon { width: min(280px, 72vw); height: auto; display: block; margin: 0 auto 2px; }
+.welcomecard h2 {
+  margin: 8px 0 8px; font-size: 44px; font-weight: 760; letter-spacing: -0.055em; color: #fff;
+}
+.welcomecard p { margin: 0 auto; max-width: 300px; color: #d5ddd9; font-size: 16px; line-height: 1.4; }
 button.scanbig {
-  margin-top: 26px; background: #2fce86; color: #062116; border: 0; border-radius: 999px;
-  padding: 12px 42px; font-size: 17px; font-weight: 700;
-  box-shadow: 0 10px 30px rgba(47, 206, 134, .35);
+  margin-top: 28px; background: #3ee6a2; color: #04150e; border: 0; border-radius: 999px;
+  padding: 14px 52px; font-size: 17px; font-weight: 750; letter-spacing: -0.02em;
 }
-button.scanbig:hover { border-color: transparent; filter: brightness(1.05); }
+button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
 .welcomeskip {
-  display: block; margin: 16px auto 0; background: none; border: 0; color: rgba(255,255,255,.72);
-  text-decoration: underline; padding: 6px 10px;
+  display: block; margin: 14px auto 0; background: none; border: 0; color: rgba(255,255,255,.7);
+  font-size: 14px; font-weight: 550; padding: 8px 12px;
 }
+.welcomeskip:hover { color: #fff; }
 .brushart, .binart { width: min(520px, 100%); height: 320px; display: block; margin: 0 auto; }
 .rocketart { width: min(280px, 70vw); height: 340px; display: block; margin: 0 auto; filter: drop-shadow(0 18px 24px rgba(0,0,0,.28)); }
 .brush { transform-origin: 78% 28%; animation: dusting 1.6s ease-in-out infinite; }
@@ -121,7 +132,7 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.05); }
   box-shadow: inset 0 -18px 30px rgba(0,40,20,.28), 0 24px 50px rgba(0,0,0,.22);
   display: grid; place-items: center; color: #fff; font-size: 84px; line-height: 1;
 }
-.stagetitle { margin: 18px 0 0; font-size: 32px; font-weight: 650; letter-spacing: -0.03em; }
+.stagetitle { margin: 18px 0 0; font-size: 36px; font-weight: 720; letter-spacing: -0.045em; }
 .stagesub { margin: 6px 0 0; color: rgba(244,247,246,.62); font-size: 15px; min-height: 22px;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reelbig { margin: 8px 0 0; font-size: 40px; font-weight: 650; letter-spacing: -0.03em; }
@@ -222,7 +233,7 @@ mark { background: transparent; color: inherit; font-weight: 650;
             color: var(--dim); margin-top: 2px; }
 
 button {
-  font: inherit; font-size: 14px; font-weight: 550; letter-spacing: -0.01em; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; letter-spacing: -0.015em; cursor: pointer;
   border-radius: 10px; padding: 9px 16px;
   border: 1px solid var(--rule); background: var(--card); color: var(--ink);
 }
@@ -245,8 +256,8 @@ button.go { background: var(--patina); border-color: var(--patina); color: var(-
 .row {
   position: relative; display: flex; align-items: center; gap: 14px;
   padding: 13px 16px; margin-bottom: 6px;
-  background: var(--card); border-radius: 12px; overflow: hidden;
-  border: 1px solid rgba(255,255,255,.04);
+  background: var(--card); border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--rule);
 }
 .fill { position: absolute; inset: 0 auto 0 0; background: var(--dim); opacity: 0.07; }
 .row.unchanged .fill { background: var(--patina); opacity: 0.11; }
@@ -259,8 +270,8 @@ button.go { background: var(--patina); border-color: var(--patina); color: var(-
 .age { color: var(--dim); font-size: 13px; width: 88px; text-align: right; white-space: nowrap; }
 .state { font-size: 12px; color: var(--dim); width: 96px; text-align: right; }
 .row.unchanged .state { color: var(--patina); font-weight: 500; }
-.box { margin-top: 12px; background: var(--card); border-radius: 14px;
-       border: 1px solid var(--rule); box-shadow: 0 10px 28px rgba(0,0,0,.12); }
+.box { margin-top: 12px; background: var(--card); border-radius: 12px;
+       border: 1px solid var(--rule); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
 .box summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
   padding: 14px 16px; font-size: 16px; font-weight: 600;
@@ -465,23 +476,25 @@ body.welcoming .update.on {
 <body>
 <div class="welcome" id="welcome" hidden>
   <div class="welcomecard">
+    <p class="eyebrow">SKURRA</p>
     <svg class="welcomemon" viewBox="0 0 320 210" aria-hidden="true">
       <defs>
         <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#16382c"/>
-          <stop offset="1" stop-color="#0c1c18"/>
+          <stop offset="0" stop-color="#1c4a38"/>
+          <stop offset="1" stop-color="#0a1612"/>
         </linearGradient>
         <linearGradient id="bezel" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#3c4a55"/>
-          <stop offset="1" stop-color="#1b242c"/>
+          <stop offset="0" stop-color="#5c6b76"/>
+          <stop offset=".45" stop-color="#2a343c"/>
+          <stop offset="1" stop-color="#12181c"/>
         </linearGradient>
       </defs>
-      <rect x="28" y="16" width="264" height="156" rx="18" fill="url(#bezel)"/>
-      <rect x="42" y="30" width="236" height="128" rx="8" fill="url(#screen)"/>
-      <path d="M62 132 C110 48 200 40 258 78" fill="none" stroke="#7dffb2" stroke-width="5" stroke-linecap="round"/>
-      <circle cx="258" cy="78" r="6" fill="#d9ffe8"/>
-      <rect x="136" y="172" width="48" height="12" rx="3" fill="#2a353e"/>
-      <rect x="112" y="182" width="96" height="8" rx="3" fill="#1b242c"/>
+      <rect x="108" y="176" width="104" height="6" rx="1" fill="#d7dee2"/>
+      <rect x="146" y="162" width="28" height="16" fill="#9aa6ad"/>
+      <rect x="28" y="14" width="264" height="150" rx="12" fill="#1a2228" stroke="#e8eeef" stroke-width="2"/>
+      <rect x="40" y="26" width="240" height="126" rx="4" fill="#07110e" stroke="#3ee6a2" stroke-width="1.5"/>
+      <path d="M64 118 C112 42 188 36 248 78" fill="none" stroke="#3ee6a2" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="248" cy="78" r="4.5" fill="#f4fff8"/>
     </svg>
     <h2>Welcome to Skurra</h2>
     <p>Start with a scan. You can keep using Skurra either way.</p>
@@ -553,6 +566,7 @@ body.welcoming .update.on {
         <div class="gauge">
           <svg viewBox="0 0 220 220">
             <circle class="ringtrack" cx="110" cy="110" r="92"/>
+            <circle id="scanfill" class="scanfill" cx="110" cy="110" r="92"/>
             <circle class="spinarc" cx="110" cy="110" r="92"/>
           </svg>
         </div>
@@ -870,6 +884,8 @@ let poller = null, frame = null, shown = 0, target = 0;
 function paint() {
   const gap = target - shown;
   shown = Math.abs(gap) < 0.05 ? target : shown + gap * 0.14;
+  const fill = $("#scanfill");
+  if (fill) fill.style.strokeDashoffset = String(578.05 * (1 - shown / 100));
   const pct = $("#stagepct");
   if (pct && $("#stage").dataset.mode === "scan") pct.textContent = Math.round(shown) + "%";
   frame = requestAnimationFrame(paint);
