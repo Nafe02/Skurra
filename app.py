@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.5"
+VERSION = "1.22.6"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -2239,7 +2239,7 @@ if webview and not os.environ.get("SKURRA_BROWSER"):
     print("\nSkurra is open in its own window. Close the window to stop.\n")
     show_skurra_icon()
     webview.create_window("Skurra", f"http://localhost:{PORT}",
-                          width=840, height=800, min_size=(640, 520))
+                          width=1040, height=820, min_size=(720, 560))
     try:
         webview.start()
     except KeyboardInterrupt:

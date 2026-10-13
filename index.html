@@ -105,14 +105,9 @@ button.scanbig {
   padding: 14px 52px; font-size: 17px; font-weight: 750; letter-spacing: -0.02em;
 }
 button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
-.welcomeskip {
-  display: block; margin: 14px auto 0; background: none; border: 0; color: rgba(255,255,255,.7);
-  font-size: 14px; font-weight: 550; padding: 8px 12px;
-}
-.welcomeskip:hover { color: #fff; }
 .brushart, .binart { width: min(520px, 100%); height: 320px; display: block; margin: 0 auto; }
 .rocketart { width: min(280px, 70vw); height: 340px; display: block; margin: 0 auto; filter: drop-shadow(0 18px 24px rgba(0,0,0,.28)); }
-.brush { transform-origin: 78% 28%; animation: dusting 1.6s ease-in-out infinite; }
+.brush { transform-origin: 49% 4%; animation: dusting 1.5s ease-in-out infinite; }
 .ash { animation: ash 1.5s ease-in infinite; }
 .ash.d2 { animation-delay: .28s; }
 .ash.d3 { animation-delay: .55s; }
@@ -333,20 +328,25 @@ h3.important { color: #b5643d; }
         border-radius: 99px; border: 1px solid var(--rule); background: var(--card); color: var(--dim); }
 .view.on { background: var(--patina); border-color: var(--patina); color: var(--paper); }
 .view:hover:not(.on) { color: var(--ink); }
-.disk { display: grid; grid-template-columns: minmax(280px, 1.15fr) minmax(280px, .85fr); gap: 22px; align-items: start; }
+.disk { display: block; }
 .disk[hidden] { display: none; }
-@media (max-width: 820px) { .disk { grid-template-columns: minmax(0, 1fr); } }
-.roots { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-.root { font: inherit; font-size: 13px; cursor: pointer; padding: 6px 12px; border-radius: 8px;
-        border: 1px solid var(--rule); background: var(--card); color: var(--dim); }
-.root.on { color: var(--ink); border-color: var(--patina); }
+.diskintro h2 { margin: 4px 0 4px; font-size: 28px; font-weight: 720; letter-spacing: -0.04em; }
+.diskbody { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 18px; align-items: start; margin-top: 16px; }
+.diskbody[hidden] { display: none; }
+@media (max-width: 860px) { .diskbody { grid-template-columns: minmax(0, 1fr); } }
+.roots { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin: 14px 0 4px; }
+.root { font: inherit; font-size: 15px; font-weight: 650; letter-spacing: -0.02em; cursor: pointer;
+        padding: 16px 14px; border-radius: 12px; text-align: left;
+        border: 1px solid var(--rule); background: var(--card); color: var(--ink); }
+.root.on { border-color: var(--patina); box-shadow: inset 0 0 0 1px var(--patina); }
 .crumbs { display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
           font-size: 13px; color: var(--dim); margin-bottom: 10px; }
 .crumbs button { font: inherit; font-size: 13px; cursor: pointer; border: none; background: none;
                  color: var(--patina); padding: 2px 3px; }
 .crumbs span { opacity: .5; }
-.frow { position: relative; display: flex; align-items: center; gap: 11px; padding: 9px 12px;
-        border-radius: 9px; background: var(--card); margin-bottom: 4px; overflow: hidden; }
+.frow { position: relative; display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+        border-radius: 10px; background: var(--card); margin-bottom: 4px; overflow: hidden;
+        border: 1px solid var(--rule); }
 .frow .fill { position: absolute; inset: 0 auto 0 0; opacity: .13; }
 .frow > *:not(.fill) { position: relative; }
 .frow input { width: 16px; height: 16px; accent-color: var(--patina); cursor: pointer; flex: none; }
@@ -359,8 +359,9 @@ h3.important { color: #b5643d; }
 .frow .ag { color: var(--dim); font-size: 12px; width: 78px; text-align: right; white-space: nowrap; }
 .dot2 { width: 9px; height: 9px; border-radius: 3px; flex: none; }
 .diskstage {
-  background: radial-gradient(80% 80% at 50% 42%, #24365c 0%, #1a2744 55%, #141e33 100%);
-  border-radius: 18px; padding: 16px 16px 8px; min-height: 460px;
+  background: #141c2e;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 14px; padding: 12px 12px 8px; overflow: hidden;
 }
 .diskstage .crumbs { color: rgba(255,255,255,.62); margin: 0 8px 4px; }
 .diskstage .crumbs button { color: #9fd7ff; }
@@ -497,9 +498,8 @@ body.welcoming .update.on {
       <circle cx="248" cy="78" r="4.5" fill="#f4fff8"/>
     </svg>
     <h2>Welcome to Skurra</h2>
-    <p>Start with a scan. You can keep using Skurra either way.</p>
+    <p>Scan finds what you can clear.</p>
     <button class="scanbig" id="welcomescan" type="button">Scan</button>
-    <button class="welcomeskip" id="welcomeskip" type="button">Use Skurra</button>
   </div>
 </div>
 <main>
@@ -570,63 +570,37 @@ body.welcoming .update.on {
             <circle class="spinarc" cx="110" cy="110" r="92"/>
           </svg>
         </div>
-        <div class="gaugen"><b id="stagepct">0%</b></div>
       </div>
       <div class="scene scene-clean" aria-hidden="true">
-        <svg class="brushart" viewBox="90 -16 230 290">
+        <svg class="brushart" viewBox="40 0 220 300" aria-hidden="true">
           <defs>
             <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#f0d7a4"/>
-              <stop offset=".4" stop-color="#c4893f"/>
-              <stop offset="1" stop-color="#7a4a22"/>
+              <stop offset="0" stop-color="#4a2812"/>
+              <stop offset=".2" stop-color="#f3d7a4"/>
+              <stop offset=".55" stop-color="#a86b34"/>
+              <stop offset="1" stop-color="#3d1e0c"/>
             </linearGradient>
             <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#fff1c4"/>
-              <stop offset=".45" stop-color="#d4ae62"/>
+              <stop offset="0" stop-color="#fff8dc"/>
+              <stop offset=".45" stop-color="#e4c27a"/>
               <stop offset="1" stop-color="#8a6428"/>
             </linearGradient>
-            <linearGradient id="feather" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#ffffff"/>
-              <stop offset=".4" stop-color="#f4f1ea"/>
-              <stop offset="1" stop-color="#c9c2b4"/>
-            </linearGradient>
-            <linearGradient id="feather2" x1="1" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#fff"/>
-              <stop offset="1" stop-color="#d5d0c6"/>
-            </linearGradient>
-            <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#000" flood-opacity=".28"/>
-            </filter>
-            <symbol id="plume">
-              <path d="M0 0 C22 2 30 22 18 48 C10 66 3 76 0 78 C-3 76 -10 66 -18 48 C-30 22 -22 2 0 0 Z" fill="url(#feather)"/>
-              <path d="M0 4 C3 24 3 52 1 74" fill="none" stroke="#c3baae" stroke-width=".8"/>
-            </symbol>
           </defs>
-          <g class="ash" fill="#e7e0d4"><circle cx="150" cy="250" r="2.2"/><circle cx="168" cy="268" r="1.6"/><circle cx="142" cy="274" r="1.3"/></g>
-          <g class="ash d2" fill="#d4cdc2"><circle cx="190" cy="258" r="1.8"/><circle cx="206" cy="276" r="1.4"/><circle cx="178" cy="286" r="1.2"/></g>
-          <g class="ash d3" fill="#f3eee6"><circle cx="128" cy="262" r="1.5"/><circle cx="220" cy="270" r="1.7"/><circle cx="160" cy="292" r="1.1"/></g>
-          <g class="ash d4" fill="#c9c2b6"><circle cx="236" cy="258" r="1.4"/><circle cx="112" cy="268" r="1.6"/></g>
-          <g class="brush" filter="url(#soft)">
-            <g transform="translate(198 132) rotate(-16)">
-              <use href="#plume" transform="rotate(-34) scale(1.15)" opacity=".75"/>
-              <use href="#plume" transform="rotate(-24) scale(1.2)" opacity=".8"/>
-              <use href="#plume" transform="rotate(-14) scale(1.22)" opacity=".85"/>
-              <use href="#plume" transform="rotate(-4) scale(1.24)" opacity=".9"/>
-              <use href="#plume" transform="rotate(6) scale(1.2)" opacity=".85"/>
-              <use href="#plume" transform="rotate(16) scale(1.14)" opacity=".8"/>
-              <use href="#plume" transform="rotate(26) scale(1.08)" opacity=".75"/>
-              <use href="#plume" transform="rotate(-30) scale(1.02)"/>
-              <use href="#plume" transform="rotate(-20) scale(1.08)"/>
-              <use href="#plume" transform="rotate(-10) scale(1.12)"/>
-              <use href="#plume" transform="rotate(0) scale(1.16)"/>
-              <use href="#plume" transform="rotate(10) scale(1.1)"/>
-              <use href="#plume" transform="rotate(20) scale(1.04)"/>
-              <use href="#plume" transform="rotate(30) scale(.96)"/>
-              <path d="M-11 -128 h22 a11 11 0 0 1 11 11 v100 a7 7 0 0 1-7 7 h-30 a7 7 0 0 1-7-7 v-100 a11 11 0 0 1 11-11z" fill="url(#wood)"/>
-              <path d="M-4 -116 h6 v82 h-6z" fill="rgba(255,255,255,.25)"/>
-              <path d="M-6 -128 h9 v9 h-9z" fill="#6a4322"/>
-              <rect x="-28" y="-18" width="56" height="16" rx="3" fill="url(#brass)"/>
-              <rect x="-28" y="-16" width="56" height="3" fill="rgba(255,255,255,.5)"/>
+          <g class="ash" fill="#fff"><circle cx="92" cy="248" r="2.2"/><circle cx="108" cy="264" r="1.6"/><circle cx="78" cy="270" r="1.3"/></g>
+          <g class="ash d2" fill="#f3eee6"><circle cx="124" cy="256" r="1.8"/><circle cx="140" cy="274" r="1.4"/><circle cx="112" cy="282" r="1.2"/></g>
+          <g class="ash d3" fill="#fff"><circle cx="70" cy="258" r="1.5"/><circle cx="154" cy="266" r="1.7"/></g>
+          <g class="brush">
+            <g transform="translate(148 158)">
+              <g transform="rotate(-58)"><path d="M0 0 C9 16 10 48 0 78 C-10 48 -9 16 0 0 Z" fill="#fff" stroke="#16181a" stroke-width="1.6"/><path d="M0 8 V72" stroke="#5e5852" stroke-width="1.15"/></g>
+              <g transform="rotate(-40)"><path d="M0 0 C10 18 11 52 0 86 C-11 52 -10 18 0 0 Z" fill="#f7f4ee" stroke="#16181a" stroke-width="1.6"/><path d="M0 8 V78" stroke="#5e5852" stroke-width="1.15"/></g>
+              <g transform="rotate(-22)"><path d="M0 0 C11 18 12 56 0 92 C-12 56 -11 18 0 0 Z" fill="#fff" stroke="#16181a" stroke-width="1.6"/><path d="M0 8 V84" stroke="#5e5852" stroke-width="1.15"/></g>
+              <g transform="rotate(-6)"><path d="M0 0 C10 16 11 50 0 84 C-11 50 -10 16 0 0 Z" fill="#f4f0e8" stroke="#16181a" stroke-width="1.6"/><path d="M0 8 V76" stroke="#5e5852" stroke-width="1.15"/></g>
+              <g transform="rotate(10)"><path d="M0 0 C9 14 10 44 0 72 C-10 44 -9 14 0 0 Z" fill="#fff" stroke="#16181a" stroke-width="1.6"/><path d="M0 8 V66" stroke="#5e5852" stroke-width="1.15"/></g>
+              <g transform="rotate(24)"><path d="M0 0 C8 12 8 36 0 60 C-8 36 -8 12 0 0 Z" fill="#f7f4ee" stroke="#16181a" stroke-width="1.6"/><path d="M0 6 V54" stroke="#5e5852" stroke-width="1.15"/></g>
+              <path d="M-7 -148 h14 a7 7 0 0 1 7 7 v124 a5 5 0 0 1-5 5 h-18 a5 5 0 0 1-5-5 v-124 a7 7 0 0 1 7-7z" fill="url(#wood)" stroke="#241208" stroke-width="1.7"/>
+              <path d="M-1.5 -136 h3 v112 h-3z" fill="#fff" opacity=".7"/>
+              <rect x="-16" y="-18" width="32" height="13" rx="2" fill="url(#brass)" stroke="#5a4014" stroke-width="1.5"/>
+              <rect x="-16" y="-16" width="32" height="2.2" fill="#fff"/>
             </g>
           </g>
         </svg>
@@ -770,12 +744,17 @@ body.welcoming .update.on {
   </div>
 
   <div class="disk" id="diskview" hidden>
+    <div class="diskintro" id="diskintro">
+      <h2>Pick a folder</h2>
+      <p class="sub">Nothing is listed until you choose one. Downloads is a good place to start.</p>
+    </div>
+    <div class="roots" id="roots"></div>
+    <div class="diskbody" id="diskbody" hidden>
     <div class="diskstage">
       <div class="crumbs" id="crumbs"></div>
       <svg class="sun" id="sun" viewBox="0 0 360 360"></svg>
     </div>
     <div>
-      <div class="roots" id="roots"></div>
       <div class="panel">
         <h4 id="diskname">This folder</h4>
         <p class="disksub" id="disksub"></p>
@@ -786,6 +765,7 @@ body.welcoming .update.on {
                placeholder="Filter this folder by name">
       </div>
       <div id="flist"></div>
+    </div>
     </div>
   </div>
 
@@ -1549,15 +1529,23 @@ function refreshDisk() {
 
 async function showDisk() {
   const roots = await (await fetch("/api/roots")).json();
+  $("#diskintro").hidden = false;
+  $("#diskbody").hidden = true;
   $("#roots").innerHTML = roots.map(r =>
     `<button class="root" type="button" data-p="${r.path}">${r.name}</button>`).join("");
   for (const b of $("#roots").querySelectorAll(".root")) {
-    b.onclick = () => { for (const o of $("#roots").children) o.classList.remove("on");
-                        b.classList.add("on"); openDir(b.dataset.p); };
+    b.onclick = () => {
+      for (const o of $("#roots").children) o.classList.toggle("on", o === b);
+      $("#diskintro").hidden = true;
+      $("#diskbody").hidden = false;
+      $("#scan").textContent = "Refresh";
+      openDir(b.dataset.p);
+    };
   }
-  const first = $("#roots").children[Math.min(3, roots.length - 1)];
-  first.classList.add("on");
-  openDir(first.dataset.p);
+  here = null;
+  dirRows = [];
+  dpick.clear();
+  note("Choose a folder. Its files appear after you click it.");
 }
 
 let sunTotal = 0;
@@ -1587,9 +1575,9 @@ for (const b of document.querySelectorAll(".view")) {
     document.body.classList.toggle("wide", view === "disk");
     $("#pick").hidden = view === "disk";
     $("#clear").hidden = view === "disk";
-    $("#scan").textContent = view === "disk" ? "Refresh" : "Scan";
+    $("#scan").textContent = "Scan";
     $("#finder").hidden = view === "disk" || !rows.length;
-    if (view === "disk") { if (!here) showDisk(); else { drawDisk(here); } }
+    if (view === "disk") showDisk();
     else { dpick.clear(); rows.length ? draw() : note(""); }
   };
 }
@@ -1651,7 +1639,10 @@ function clearFind() {
 
 // ---------------------------------------------------------------- actions
 
-$("#scan").onclick = () => view === "disk" ? openDir(here ? here.path : "") : scan();
+$("#scan").onclick = () => {
+  if (view !== "disk") { scan(); return; }
+  if (here && !$("#diskbody").hidden) openDir(here.path);
+};
 
 $("#pick").onclick = () => {
   // Only what is actually on screen. Ticking the small rows the drawers hide
@@ -2006,7 +1997,6 @@ function hideWelcome() {
   document.body.classList.remove("welcoming");
 }
 $("#welcomescan").onclick = () => { hideWelcome(); scan(); };
-$("#welcomeskip").onclick = hideWelcome;
 
 speak();
 showWelcome();

@@ -1,5 +1,5 @@
 {
-  "version": "1.22.5",
+  "version": "1.22.6",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Scan no longer stops on the Downloads question. The welcome page and the rest of Skurra are sharper, and the ring fills as the scan moves."
+  "notes": "The scan ring has no number on it. Disk space waits until you pick a folder such as Downloads. The welcome page is Scan only, and the duster is sharper."
 }
