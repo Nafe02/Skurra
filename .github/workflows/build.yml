@@ -55,12 +55,18 @@ jobs:
             --add-data "index.html;." `
             @bins `
             app.py
-          foreach ($name in @("python312.dll", "vcruntime140.dll", "vcruntime140_1.dll")) {
-            if (-not (Test-Path "dist\Skurra\$name")) {
-              $extra = "windows-runtime-$name"
-              if (Test-Path $extra) { Copy-Item $extra "dist\Skurra\$name" }
-            }
-            if (-not (Test-Path "dist\Skurra\$name")) { Fail "dist\Skurra is missing $name" }
+          # PyInstaller puts python312.dll in dist\Skurra\_internal, next to the
+          # exe's private folder, not in Temp. Either place is fine.
+          $py = Get-ChildItem -Path dist\Skurra -Recurse -Filter python312.dll | Select-Object -First 1
+          if (-not $py) {
+            $found = @(Get-ChildItem dist\Skurra -Recurse -Filter *.dll | ForEach-Object { $_.Name }) -join ', '
+            Fail "python312.dll was not built into the Windows folder. Other DLLs: $found"
+          }
+          $bundle = $py.DirectoryName
+          foreach ($name in @("vcruntime140.dll", "vcruntime140_1.dll")) {
+            $destDll = Join-Path $bundle $name
+            if (-not (Test-Path $destDll)) { Copy-Item "windows-runtime-$name" $destDll }
+            if (-not (Test-Path $destDll)) { Fail "Windows folder is missing $name" }
           }
           if (Test-Path dist\Skurra-Windows.zip) { Remove-Item dist\Skurra-Windows.zip }
           Compress-Archive -Path dist\Skurra -DestinationPath dist\Skurra-Windows.zip

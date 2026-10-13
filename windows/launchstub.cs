@@ -51,6 +51,7 @@ static class Program {
             string built = Path.Combine(stage, "Skurra");
             string exe = Path.Combine(built, "Skurra.exe");
             string dll = Path.Combine(built, "python312.dll");
+            if (!File.Exists(dll)) dll = Path.Combine(built, "_internal", "python312.dll");
             if (!File.Exists(exe) || !File.Exists(dll))
                 throw new FileNotFoundException("The Windows app is missing python312.dll.");
             if (Directory.Exists(dest)) Directory.Delete(dest, true);

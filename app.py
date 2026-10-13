@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.1"
+VERSION = "1.22.2"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1680,7 +1680,8 @@ def install_update():
             # new single file over that exe throws the DLL away. Run the download
             # instead. A lone exe can be replaced, because the download is the
             # launcher and their shortcut should become that launcher.
-            replace = "$false" if (target.parent / "python312.dll").is_file() else "$true"
+            beside = (target.parent / "python312.dll").is_file() or (target.parent / "_internal" / "python312.dll").is_file()
+            replace = "$false" if beside else "$true"
             script = Path(tempfile.gettempdir()) / f"skurra-swap-{os.getpid()}.ps1"
             # PowerShell, not a .bat: it can wait properly, prove the new copy
             # runs, and put the old one back if it does not.
