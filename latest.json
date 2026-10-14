@@ -1,5 +1,5 @@
 {
-  "version": "1.22.8",
+  "version": "1.22.9",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Disk space opens the folder you clicked. The chart shows what is there, and only folders get a colour. Items leave the bin."
+  "notes": "The duster and the bin are sharper, and the folder filter is a proper search field."
 }

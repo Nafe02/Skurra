@@ -98,16 +98,24 @@ button.scanbig {
   padding: 14px 52px; font-size: 17px; font-weight: 750; letter-spacing: -0.02em;
 }
 button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
-.brushart, .binart { width: min(520px, 100%); height: 320px; display: block; margin: 0 auto; }
+.brushart, .binart { width: min(440px, 92%); height: 300px; display: block; margin: 0 auto; position: relative; z-index: 1; }
+.scene-clean::before, .scene-empty::before {
+  content: "";
+  position: absolute; left: 50%; top: 42%;
+  width: 250px; height: 250px; transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(62, 230, 162, .7);
+  background: radial-gradient(circle, rgba(62, 230, 162, .12), transparent 70%);
+}
 .rocketart { width: min(260px, 64vw); height: 320px; display: block; margin: 0 auto; }
-.brush { transform-origin: 49% 4%; animation: dusting 1.5s ease-in-out infinite; }
+.brush { transform-origin: 50% 10%; animation: dusting 1.45s ease-in-out infinite; }
 .ash { animation: ash 1.5s ease-in infinite; }
 .ash.d2 { animation-delay: .28s; }
 .ash.d3 { animation-delay: .55s; }
 .ash.d4 { animation-delay: .82s; }
 .rocket { animation: launch 2.4s cubic-bezier(.16,.8,.28,1) forwards; }
 .flame { transform-origin: 140px 292px; animation: flicker .16s ease-in-out infinite; }
-.lid { transform-box: fill-box; transform-origin: 12% 70%; animation: openlid 1.8s ease-in-out infinite; }
+.lid { transform-box: fill-box; transform-origin: 8% 80%; animation: openlid 1.7s ease-in-out infinite; }
 .paper { animation: dump 1.25s ease-in infinite; }
 .paper.d2 { animation-delay: .28s; }
 .paper.d3 { animation-delay: .55s; }
@@ -117,7 +125,10 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
   background: #10281c; border: 3px solid #3ee6a2;
   display: grid; place-items: center; color: #3ee6a2; font-size: 72px; font-weight: 700; line-height: 1;
 }
-.stagetitle { margin: 18px 0 0; font-size: 36px; font-weight: 760; letter-spacing: -0.05em; }
+.stagetitle { margin: 8px 0 0; font-size: 36px; font-weight: 760; letter-spacing: -0.05em; }
+.stageeye {
+  margin: 14px 0 0; font-size: 11px; font-weight: 750; letter-spacing: .32em; color: #3ee6a2;
+}
 .stagesub { margin: 6px 0 0; color: #c5cec9; font-size: 15px; min-height: 22px;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reelbig { margin: 8px 0 0; font-size: 44px; font-weight: 760; letter-spacing: -0.05em; color: #3ee6a2; }
@@ -145,6 +156,8 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
 .stage[data-mode="done"] .scene { grid-column: 1; grid-row: 1 / span 5; height: 320px; margin: 0; }
 .stage[data-mode="complete"] .stagetitle,
 .stage[data-mode="done"] .stagetitle { grid-column: 2; margin: 0; font-size: 44px; font-weight: 760; letter-spacing: -0.05em; color: #fff; align-self: end; }
+.stage[data-mode="complete"] .stageeye,
+.stage[data-mode="done"] .stageeye { grid-column: 2; margin: 0; align-self: end; }
 .stage[data-mode="complete"] .reelbig,
 .stage[data-mode="done"] .reelbig { grid-column: 2; margin: 0; font-size: 40px; color: #3ee6a2; }
 .stage[data-mode="complete"] .stagesub,
@@ -157,6 +170,8 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
   .stage[data-mode="done"] .stagein { grid-template-columns: 1fr; text-align: center; padding: 28px 20px; }
   .stage[data-mode="complete"] .scene,
   .stage[data-mode="done"] .scene,
+  .stage[data-mode="complete"] .stageeye,
+  .stage[data-mode="done"] .stageeye,
   .stage[data-mode="complete"] .stagetitle,
   .stage[data-mode="done"] .stagetitle,
   .stage[data-mode="complete"] .reelbig,
@@ -191,13 +206,13 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
 }
 @keyframes flicker { 50% { transform: scaleY(.75); } }
 @keyframes openlid {
-  0%, 14%, 100% { transform: rotate(0deg); }
-  36%, 74% { transform: rotate(-36deg); }
+  0%, 12%, 100% { transform: rotate(0deg); }
+  34%, 72% { transform: rotate(-46deg); }
 }
 @keyframes dump {
-  0% { transform: translateY(22px) rotate(8deg); opacity: 0; }
-  14% { opacity: 1; }
-  100% { transform: translateY(-96px) rotate(-16deg); opacity: 0; }
+  0% { transform: translateY(54px) scale(.82); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translateY(-128px) rotate(-14deg) scale(1); opacity: 0; }
 }
 .chip { font-size: 13px; font-weight: 650; padding: 6px 12px; border-radius: 8px;
         background: #0c1c16; color: #f4fff8; border: 1px solid #3ee6a2;
@@ -296,7 +311,23 @@ h3.important { color: #b5643d; }
 .finder { display: flex; align-items: center; gap: 10px; margin-bottom: var(--step);
           padding: 0 14px; border-radius: 10px; border: 1px solid var(--rule); background: var(--card); }
 .finder[hidden] { display: none; }
-#dfinder { margin: 0 0 12px; }
+#dfinder {
+  margin: 14px 0 12px; height: 46px; padding: 0 14px; gap: 10px;
+  border-radius: 12px; background: #fff; border: 1px solid #d5dbd8;
+  box-shadow: 0 1px 0 #fff inset, 0 10px 22px rgba(0,0,0,.28);
+}
+#dfinder:focus-within {
+  border-color: #14915f;
+  box-shadow: 0 0 0 3px rgba(62, 230, 162, .45);
+}
+#dfinder .fico { stroke: #14181a; }
+#dfind {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+  color: #101412; font: 600 15px/1.2 -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 12px 0; letter-spacing: -0.02em;
+}
+#dfind::placeholder { color: #66706c; font-weight: 500; }
+#dfind::-webkit-search-cancel-button { display: none; }
 .finder:focus-within { border-color: var(--patina); }
 .fico { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--dim);
         stroke-width: 2; stroke-linecap: round; }
@@ -356,9 +387,9 @@ h3.important { color: #b5643d; }
 }
 .diskstage .crumbs { color: rgba(255,255,255,.62); margin: 0 8px 4px; }
 .diskstage .crumbs button { color: #9fd7ff; }
-.panel { background: var(--card); border: 1px solid var(--rule); border-radius: var(--round);
-         padding: 16px; }
-.panel h4 { margin: 0 0 4px; font-size: 18px; letter-spacing: -0.02em; }
+.panel { background: var(--card); border: 1px solid var(--rule); border-radius: 12px;
+         padding: 16px 16px 14px; }
+.panel h4 { margin: 0 0 4px; font-size: 20px; font-weight: 720; letter-spacing: -0.03em; }
 .panel .disksub { margin: 0 0 12px; color: var(--dim); font-size: 13px; }
 .sun { width: 100%; max-width: 560px; aspect-ratio: 1; display: block; margin: 0 auto; }
 .sun.rise { animation: discup .55s cubic-bezier(.16,.84,.3,1); transform-origin: 50% 50%; }
@@ -563,63 +594,37 @@ body.welcoming .update.on {
         <div class="gaugen"><b id="stagepct">0%</b></div>
       </div>
       <div class="scene scene-clean" aria-hidden="true">
-        <svg class="brushart" viewBox="40 0 220 300" aria-hidden="true">
-          <defs>
-            <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#4a2812"/>
-              <stop offset=".2" stop-color="#f3d7a4"/>
-              <stop offset=".55" stop-color="#a86b34"/>
-              <stop offset="1" stop-color="#3d1e0c"/>
-            </linearGradient>
-            <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#fff8dc"/>
-              <stop offset=".45" stop-color="#e4c27a"/>
-              <stop offset="1" stop-color="#8a6428"/>
-            </linearGradient>
-          </defs>
-          <g class="ash" fill="#fff"><circle cx="92" cy="248" r="2.2"/><circle cx="108" cy="264" r="1.6"/><circle cx="78" cy="270" r="1.3"/></g>
-          <g class="ash d2" fill="#f3eee6"><circle cx="124" cy="256" r="1.8"/><circle cx="140" cy="274" r="1.4"/><circle cx="112" cy="282" r="1.2"/></g>
-          <g class="ash d3" fill="#fff"><circle cx="70" cy="258" r="1.5"/><circle cx="154" cy="266" r="1.7"/></g>
+        <svg class="brushart" viewBox="0 0 280 300" aria-hidden="true">
+          <g class="ash" fill="#3ee6a2"><circle cx="86" cy="246" r="2.4"/><circle cx="102" cy="262" r="1.7"/><circle cx="72" cy="268" r="1.4"/></g>
+          <g class="ash d2" fill="#fff"><circle cx="118" cy="252" r="2"/><circle cx="134" cy="270" r="1.5"/><circle cx="98" cy="278" r="1.3"/></g>
+          <g class="ash d3" fill="#3ee6a2"><circle cx="64" cy="256" r="1.6"/><circle cx="148" cy="264" r="1.8"/></g>
           <g class="brush">
-            <g transform="translate(148 158)">
-              <g transform="rotate(-58)"><path d="M0 0 C9 16 10 48 0 78 C-10 48 -9 16 0 0 Z" fill="#fff" stroke="#16181a" stroke-width="2.2"/><path d="M0 8 V72" stroke="#3a342e" stroke-width="1.4"/></g>
-              <g transform="rotate(-40)"><path d="M0 0 C10 18 11 52 0 86 C-11 52 -10 18 0 0 Z" fill="#f7f4ee" stroke="#16181a" stroke-width="2.2"/><path d="M0 8 V78" stroke="#3a342e" stroke-width="1.4"/></g>
-              <g transform="rotate(-22)"><path d="M0 0 C11 18 12 56 0 92 C-12 56 -11 18 0 0 Z" fill="#fff" stroke="#16181a" stroke-width="2.2"/><path d="M0 8 V84" stroke="#3a342e" stroke-width="1.4"/></g>
-              <g transform="rotate(-6)"><path d="M0 0 C10 16 11 50 0 84 C-11 50 -10 16 0 0 Z" fill="#f4f0e8" stroke="#16181a" stroke-width="2.2"/><path d="M0 8 V76" stroke="#3a342e" stroke-width="1.4"/></g>
-              <g transform="rotate(10)"><path d="M0 0 C9 14 10 44 0 72 C-10 44 -9 14 0 0 Z" fill="#fff" stroke="#16181a" stroke-width="2.2"/><path d="M0 8 V66" stroke="#3a342e" stroke-width="1.4"/></g>
-              <g transform="rotate(24)"><path d="M0 0 C8 12 8 36 0 60 C-8 36 -8 12 0 0 Z" fill="#f7f4ee" stroke="#16181a" stroke-width="2.2"/><path d="M0 6 V54" stroke="#3a342e" stroke-width="1.4"/></g>
-              <path d="M-7 -148 h14 a7 7 0 0 1 7 7 v124 a5 5 0 0 1-5 5 h-18 a5 5 0 0 1-5-5 v-124 a7 7 0 0 1 7-7z" fill="url(#wood)" stroke="#241208" stroke-width="2"/>
-              <path d="M-1.5 -136 h3 v112 h-3z" fill="#fff" opacity=".7"/>
-              <rect x="-16" y="-18" width="32" height="13" rx="2" fill="url(#brass)" stroke="#5a4014" stroke-width="1.5"/>
-              <rect x="-16" y="-16" width="32" height="2.2" fill="#fff"/>
+            <g transform="translate(140 162)">
+              <g transform="rotate(-52)"><path d="M0 0 C8 14 9 42 0 70 C-9 42 -8 14 0 0 Z" fill="#fff" stroke="#101214" stroke-width="2.4"/><path d="M0 8 V64" stroke="#3ee6a2" stroke-width="1.8"/></g>
+              <g transform="rotate(-34)"><path d="M0 0 C9 16 10 48 0 80 C-10 48 -9 16 0 0 Z" fill="#f4fff8" stroke="#101214" stroke-width="2.4"/><path d="M0 8 V72" stroke="#3ee6a2" stroke-width="1.8"/></g>
+              <g transform="rotate(-16)"><path d="M0 0 C10 16 11 52 0 88 C-11 52 -10 16 0 0 Z" fill="#fff" stroke="#101214" stroke-width="2.4"/><path d="M0 8 V80" stroke="#3ee6a2" stroke-width="1.8"/></g>
+              <g transform="rotate(0)"><path d="M0 0 C9 14 10 46 0 78 C-10 46 -9 14 0 0 Z" fill="#f7fffb" stroke="#101214" stroke-width="2.4"/><path d="M0 8 V70" stroke="#3ee6a2" stroke-width="1.8"/></g>
+              <g transform="rotate(16)"><path d="M0 0 C8 12 8 38 0 64 C-8 38 -8 12 0 0 Z" fill="#fff" stroke="#101214" stroke-width="2.4"/><path d="M0 6 V58" stroke="#3ee6a2" stroke-width="1.8"/></g>
+              <path d="M-9 -152 h18 a9 9 0 0 1 9 9 v128 a6 6 0 0 1-6 6 h-24 a6 6 0 0 1-6-6 V-143 a9 9 0 0 1 9-9z" fill="#14181c" stroke="#3ee6a2" stroke-width="2"/>
+              <path d="M-2 -140 h4 v116 h-4z" fill="#3ee6a2"/>
+              <rect x="-18" y="-20" width="36" height="14" rx="2" fill="#e8eef0" stroke="#101214" stroke-width="1.8"/>
+              <rect x="-18" y="-18" width="36" height="2" fill="#3ee6a2"/>
             </g>
           </g>
         </svg>
       </div>
       <div class="scene scene-empty" aria-hidden="true">
         <svg class="binart" viewBox="0 0 280 300" aria-hidden="true">
-          <defs>
-            <linearGradient id="binmetal" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#4e565e"/>
-              <stop offset=".22" stop-color="#f4f7f8"/>
-              <stop offset=".55" stop-color="#c5ced6"/>
-              <stop offset="1" stop-color="#3e464e"/>
-            </linearGradient>
-            <linearGradient id="binlid" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#ffffff"/>
-              <stop offset="1" stop-color="#b7c2cb"/>
-            </linearGradient>
-          </defs>
-          <path d="M58 118 h164 l-22 132 H80 z" fill="url(#binmetal)" stroke="#1a1e22" stroke-width="2"/>
-          <path d="M92 138 h96 l-12 96 H104 z" fill="#101418" stroke="#1a1e22" stroke-width="1.4"/>
-          <path d="M78 138 h22 l-4 92 h-14 z" fill="#fff" opacity=".35"/>
-          <g class="paper"><rect x="112" y="132" width="42" height="24" rx="2" fill="#fff" stroke="#16181a" stroke-width="1.5"/></g>
-          <g class="paper d2"><rect x="128" y="136" width="36" height="20" rx="2" fill="#e7f6ee" stroke="#16181a" stroke-width="1.5"/></g>
-          <g class="paper d3"><rect x="100" y="140" width="34" height="18" rx="2" fill="#f6e4de" stroke="#16181a" stroke-width="1.5"/></g>
-          <g class="paper d4"><rect x="140" y="128" width="30" height="18" rx="2" fill="#fff" stroke="#16181a" stroke-width="1.5"/></g>
+          <path d="M62 124 h156 l-20 128 H82 z" fill="#d7dee3" stroke="#101214" stroke-width="2.4"/>
+          <path d="M96 146 h88 l-10 90 H106 z" fill="#101418" stroke="#101214" stroke-width="1.6"/>
+          <path d="M78 146 h18 l-3 88 h-12 z" fill="#fff"/>
+          <path d="M62 124 h156" fill="none" stroke="#3ee6a2" stroke-width="3"/>
+          <g class="paper"><rect x="108" y="118" width="40" height="22" rx="2" fill="#fff" stroke="#101214" stroke-width="1.7"/><path d="M108 118 h12 v8 h-12z" fill="#3ee6a2"/></g>
+          <g class="paper d2"><rect x="126" y="124" width="34" height="18" rx="2" fill="#f4fff8" stroke="#101214" stroke-width="1.7"/><path d="M126 124 h10 v7 h-10z" fill="#3ee6a2"/></g>
+          <g class="paper d3"><rect x="96" y="128" width="32" height="16" rx="2" fill="#fff" stroke="#101214" stroke-width="1.7"/></g>
           <g class="lid">
-            <path d="M46 108 h188 l-14 20 H60 z" fill="url(#binlid)" stroke="#1a1e22" stroke-width="2"/>
-            <rect x="118" y="90" width="44" height="16" rx="3" fill="#d5dee4" stroke="#1a1e22" stroke-width="1.5"/>
+            <path d="M48 112 h184 l-12 18 H60 z" fill="#f7fafb" stroke="#101214" stroke-width="2.4"/>
+            <rect x="116" y="94" width="48" height="16" rx="3" fill="#3ee6a2" stroke="#101214" stroke-width="1.7"/>
           </g>
         </svg>
       </div>
@@ -674,6 +679,7 @@ body.welcoming .update.on {
         </svg>
       </div>
       <div class="scene scene-done" aria-hidden="true"><div class="orb">&#10003;</div></div>
+      <p class="stageeye">SKURRA</p>
       <h2 class="stagetitle" id="stagetitle">Scanning your system</h2>
       <p class="reelbig" id="reelbig"></p>
       <p class="stagesub" id="stagesub"></p>
@@ -750,6 +756,9 @@ body.welcoming .update.on {
         <div class="keys" id="keys"></div>
       </div>
       <div class="finder" id="dfinder">
+        <svg class="fico" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+        </svg>
         <input id="dfind" type="search" autocomplete="off" spellcheck="false"
                placeholder="Filter this folder by name">
       </div>
