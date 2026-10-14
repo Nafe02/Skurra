@@ -1,5 +1,5 @@
 {
-  "version": "1.22.7",
+  "version": "1.22.8",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "The scan ring is entirely green, and the percent is back. The cleanup complete page is sharper."
+  "notes": "Disk space opens the folder you clicked. The chart shows what is there, and only folders get a colour. Items leave the bin."
 }

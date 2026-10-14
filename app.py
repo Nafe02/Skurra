@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.7"
+VERSION = "1.22.8"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -120,9 +120,51 @@ def disk_roots():
     names = ["Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music"]
     if WINDOWS:
         names = ["Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music"]
+        # The real Desktop or Pictures can live under OneDrive, not beside
+        # the home folder. Ask Windows where each one actually is.
+        return [HOME] + [windows_known(n) for n in names]
     # Do not stat these. On a Mac, even asking "is Desktop there?" can
     # raise the system question and leave OK sitting on screen.
     return [HOME] + [HOME / n for n in names]
+
+
+def windows_known(name):
+    """The folder Windows itself calls Desktop, Pictures, and so on."""
+    fallback = HOME / name
+    ids = {
+        "Desktop": "B4BFCC3A-DB2C-424C-B029-7FE99A87C641",
+        "Documents": "FDD39AD0-238F-46AF-ADB4-6C85480369C7",
+        "Downloads": "374DE290-123F-4565-9164-39C4925E467B",
+        "Pictures": "33E28130-4E1E-4676-835A-98395C3BC3BB",
+        "Videos": "18989B1D-99B5-455B-841C-AB7C74E4DDFC",
+        "Music": "4BD8D571-6D19-48D3-BE97-422220080E43",
+    }
+    text = ids.get(name)
+    if not text:
+        return fallback
+    try:
+        import ctypes
+        parts = text.split("-")
+        tail = bytes.fromhex(parts[3] + parts[4])
+
+        class GUID(ctypes.Structure):
+            _fields_ = [("Data1", ctypes.c_ulong),
+                        ("Data2", ctypes.c_ushort),
+                        ("Data3", ctypes.c_ushort),
+                        ("Data4", ctypes.c_ubyte * 8)]
+
+        guid = GUID(int(parts[0], 16), int(parts[1], 16), int(parts[2], 16),
+                    (ctypes.c_ubyte * 8)(*tail))
+        ptr = ctypes.c_void_p()
+        hr = ctypes.windll.shell32.SHGetKnownFolderPath(
+            ctypes.byref(guid), 0, None, ctypes.byref(ptr))
+        if hr != 0 or not ptr.value:
+            return fallback
+        found = Path(ctypes.wstring_at(ptr.value))
+        ctypes.windll.ole32.CoTaskMemFree(ptr)
+        return found
+    except Exception:
+        return fallback
 
 # Why Skurra asks for each of these. True of what it actually does: Downloads
 # feeds the Installation files list, the rest feed the Disk space view.
