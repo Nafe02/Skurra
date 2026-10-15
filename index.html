@@ -34,7 +34,8 @@ body {
 main { max-width: 700px; margin: 0 auto; transition: max-width .25s ease; }
 body.wide main { max-width: 1120px; }
 @media (max-width: 1180px) { body.wide main { max-width: 100%; } }
-h1 { margin: 0; font-size: 32px; font-weight: 720; letter-spacing: -0.05em; }
+h1 { margin: 0; font-size: 34px; font-weight: 760; letter-spacing: -0.055em; }
+.mark { margin: 0 0 2px; font-size: 12px; font-weight: 750; letter-spacing: .32em; color: var(--patina); }
 .note { margin: 6px 0 var(--step); color: var(--dim); font-size: 14px; }
 h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 .sub { color: var(--dim); font-size: 13px; margin: 0 0 12px; }
@@ -55,7 +56,6 @@ h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 .stage[data-mode="scan"] .scene-scan,
 .stage[data-mode="clean"] .scene-clean,
 .stage[data-mode="empty"] .scene-empty,
-.stage[data-mode="complete"] .scene-rocket,
 .stage[data-mode="done"] .scene-done { display: block; }
 .gauge { width: min(300px, 72vw); height: min(300px, 72vw); margin: 8px auto 0; position: relative; }
 .gauge svg { width: 100%; height: 100%; display: block; }
@@ -107,14 +107,11 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
   border: 1px solid rgba(62, 230, 162, .7);
   background: radial-gradient(circle, rgba(62, 230, 162, .12), transparent 70%);
 }
-.rocketart { width: min(260px, 64vw); height: 320px; display: block; margin: 0 auto; }
 .brush { transform-origin: 50% 10%; animation: dusting 1.45s ease-in-out infinite; }
 .ash { animation: ash 1.5s ease-in infinite; }
 .ash.d2 { animation-delay: .28s; }
 .ash.d3 { animation-delay: .55s; }
 .ash.d4 { animation-delay: .82s; }
-.rocket { animation: launch 2.4s cubic-bezier(.16,.8,.28,1) forwards; }
-.flame { transform-origin: 140px 292px; animation: flicker .16s ease-in-out infinite; }
 .lid { transform-box: fill-box; transform-origin: 8% 80%; animation: openlid 1.7s ease-in-out infinite; }
 .paper { animation: dump 1.25s ease-in infinite; }
 .paper.d2 { animation-delay: .28s; }
@@ -185,6 +182,16 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
   .stage[data-mode="complete"] .stagedone,
   .stage[data-mode="done"] .stagedone { justify-self: center; }
 }
+.stage[data-mode="clean"][data-settled="1"] .scene { height: 230px; }
+.stage[data-mode="clean"][data-settled="1"] .brushart { height: 220px; }
+.stage[data-mode="clean"][data-settled="1"] .reelbig { display: block; }
+.stage[data-mode="clean"][data-settled="1"] .reellist { display: flex; }
+.stage[data-mode="clean"][data-settled="1"] .stagedone {
+  display: inline-flex; margin-top: 18px;
+  background: #3ee6a2; color: #04150e; border: 0; border-radius: 999px;
+  padding: 12px 28px; font-weight: 750; letter-spacing: -0.02em;
+}
+.stage[data-mode="clean"][data-settled="1"] .chip { animation: none; opacity: 1; }
 @keyframes rise { from { opacity: 0; } }
 @keyframes dusting {
   0%, 100% { transform: rotate(-8deg); }
@@ -195,16 +202,10 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
   20% { opacity: .85; }
   100% { transform: translate(-10px, 54px); opacity: 0; }
 }
-@keyframes launch {
-  0% { transform: translateY(70px); opacity: 0; }
-  16% { opacity: 1; }
-  100% { transform: translateY(-18px); opacity: 1; }
-}
 @keyframes discup {
   from { transform: scale(.78); opacity: .35; }
   to { transform: scale(1); opacity: 1; }
 }
-@keyframes flicker { 50% { transform: scaleY(.75); } }
 @keyframes openlid {
   0%, 12%, 100% { transform: rotate(0deg); }
   34%, 72% { transform: rotate(-46deg); }
@@ -227,7 +228,7 @@ mark { background: transparent; color: inherit; font-weight: 650;
        box-shadow: inset 0 -0.4em 0 rgba(47, 107, 94, .28); }
 .row.hit { outline: 2px solid var(--patina); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
-  .brush, .ash, .rocket, .flame, .lid, .paper, .chip, .stage, .sun.rise { animation: none; }
+  .brush, .ash, .lid, .paper, .chip, .stage, .sun.rise { animation: none; }
 }
 .state b { display: block; font-weight: 400; }
 .state em { display: block; font-style: normal; font-size: 11px;
@@ -525,7 +526,8 @@ body.welcoming .update.on {
   </div>
 </div>
 <main>
-  <h1>Skurra: AI Storage Cleaner</h1>
+  <p class="mark">SKURRA</p>
+  <h1>AI Storage Cleaner</h1>
   <p class="warn" id="warn"></p>
 
   <div class="sheetback" id="sheetback" hidden>
@@ -625,56 +627,6 @@ body.welcoming .update.on {
           <g class="lid">
             <path d="M48 112 h184 l-12 18 H60 z" fill="#f7fafb" stroke="#101214" stroke-width="2.4"/>
             <rect x="116" y="94" width="48" height="16" rx="3" fill="#3ee6a2" stroke="#101214" stroke-width="1.7"/>
-          </g>
-        </svg>
-      </div>
-      <div class="scene scene-rocket" aria-hidden="true">
-        <svg class="rocketart" viewBox="0 0 280 360">
-          <defs>
-            <linearGradient id="bodyg" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#c5ced8"/>
-              <stop offset=".28" stop-color="#ffffff"/>
-              <stop offset=".62" stop-color="#f4f7fb"/>
-              <stop offset="1" stop-color="#9aa6b5"/>
-            </linearGradient>
-            <linearGradient id="redg" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#ff6b6b"/>
-              <stop offset=".45" stop-color="#e53935"/>
-              <stop offset="1" stop-color="#9e1b1b"/>
-            </linearGradient>
-            <linearGradient id="redg2" x1="1" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#ff8a80"/>
-              <stop offset="1" stop-color="#c62828"/>
-            </linearGradient>
-            <radialGradient id="winglass" cx="38%" cy="35%" r="65%">
-              <stop offset="0" stop-color="#d7f1ff"/>
-              <stop offset=".45" stop-color="#3aa0e8"/>
-              <stop offset="1" stop-color="#0d5fa8"/>
-            </radialGradient>
-            <radialGradient id="flameg" cx="50%" cy="18%" r="75%">
-              <stop offset="0" stop-color="#fff6c2"/>
-              <stop offset=".28" stop-color="#ffd24a"/>
-              <stop offset=".7" stop-color="#ff8a1e"/>
-              <stop offset="1" stop-color="#ff6a00" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="nozzle" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#4a515a"/>
-              <stop offset="1" stop-color="#1c2126"/>
-            </linearGradient>
-          </defs>
-          <g class="rocket">
-            <path class="flame" d="M116 252c-6 28-4 62 24 96 28-34 30-68 24-96-8 14-40 14-48 0z" fill="url(#flameg)"/>
-            <path class="flame" d="M128 258c-2 18 0 40 12 62 12-22 14-44 12-62-4 8-20 8-24 0z" fill="#ffe38a"/>
-            <path d="M104 188 C62 206 46 248 58 272 L114 230 Z" fill="url(#redg)" stroke="#3d0c0c" stroke-width="1.6"/>
-            <path d="M176 188 C218 206 234 248 222 272 L166 230 Z" fill="url(#redg2)" stroke="#3d0c0c" stroke-width="1.6"/>
-            <path d="M116 228 h48 l6 22 h-60 z" fill="url(#nozzle)" stroke="#101418" stroke-width="1.4"/>
-            <path d="M112 118 C112 168 108 214 116 236 h48 C172 214 168 168 168 118 Z" fill="url(#bodyg)" stroke="#1c242c" stroke-width="1.8"/>
-            <path d="M118 128 C118 160 116 190 120 214 h16 C132 186 130 156 128 128 Z" fill="#fff"/>
-            <path d="M140 28 C172 62 184 96 176 124 H104 C96 96 108 62 140 28 Z" fill="url(#redg)" stroke="#3d0c0c" stroke-width="1.6"/>
-            <path d="M128 46 C134 70 132 92 128 108 h10 C140 88 138 64 134 46 Z" fill="#fff"/>
-            <circle cx="140" cy="168" r="24" fill="#e8eef4" stroke="#1c242c" stroke-width="1.6"/>
-            <circle cx="140" cy="168" r="18" fill="url(#winglass)" stroke="#0a3a66" stroke-width="1.4"/>
-            <ellipse cx="133" cy="161" rx="6" ry="3.5" fill="#fff"/>
           </g>
         </svg>
       </div>
@@ -877,6 +829,7 @@ function whereLine(text) {
 
 function openStage(mode, title) {
   const stage = $("#stage");
+  delete stage.dataset.settled;
   stage.dataset.mode = mode;
   stage.hidden = false;
   $("#stagetitle").textContent = title;
@@ -888,7 +841,9 @@ function openStage(mode, title) {
 }
 
 function closeStage() {
-  $("#stage").hidden = true;
+  const stage = $("#stage");
+  stage.hidden = true;
+  delete stage.dataset.settled;
 }
 
 function watch(on) {
@@ -1335,8 +1290,25 @@ function celebrate(items, headline) {
   }
   $("#reelbig").textContent = total > 0 ? "0 MB" : "Empty";
   const flying = headline === "Cleared";
-  openStage(flying ? "complete" : "done", flying ? "Cleanup complete" : headline);
-  if (flying) $("#stagesub").textContent = "successfully cleaned";
+  openStage(flying ? "clean" : "done", flying ? "Cleanup complete" : headline);
+  if (flying) {
+    $("#stage").dataset.settled = "1";
+    $("#stagesub").textContent = "Cleared in place";
+    $("#reelbig").textContent = total > 0 ? "0 MB" : "Empty";
+    $("#reellist").innerHTML = "";
+    shown.forEach((it, n) => {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = `${it.name}${it.mb ? " · " + size(it.mb) : ""}`;
+      $("#reellist").appendChild(chip);
+    });
+    if (extra > 0) {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = `+ ${extra} more`;
+      $("#reellist").appendChild(chip);
+    }
+  }
   watch(false);
   $("#scan").disabled = true;
   note(headline);
