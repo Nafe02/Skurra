@@ -112,7 +112,7 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
 .ash.d2 { animation-delay: .28s; }
 .ash.d3 { animation-delay: .55s; }
 .ash.d4 { animation-delay: .82s; }
-.lid { transform-box: fill-box; transform-origin: 8% 80%; animation: openlid 1.7s ease-in-out infinite; }
+.lid { transform-box: fill-box; transform-origin: 10% 100%; animation: openlid 1.7s ease-in-out infinite; }
 .paper { animation: dump 1.25s ease-in infinite; }
 .paper.d2 { animation-delay: .28s; }
 .paper.d3 { animation-delay: .55s; }
@@ -207,8 +207,8 @@ button.scanbig:hover { border-color: transparent; filter: brightness(1.06); }
   to { transform: scale(1); opacity: 1; }
 }
 @keyframes openlid {
-  0%, 12%, 100% { transform: rotate(0deg); }
-  34%, 72% { transform: rotate(-46deg); }
+  0%, 14%, 100% { transform: rotate(0deg); }
+  36%, 70% { transform: rotate(-24deg); }
 }
 @keyframes dump {
   0% { transform: translateY(54px) scale(.82); opacity: 0; }
@@ -425,15 +425,23 @@ h3.important { color: #b5643d; }
 .skip b { color: var(--ink); font-weight: 500; }
 .foot { margin-top: var(--step); padding-top: var(--step);
         border-top: 1px solid var(--rule); color: var(--dim); font-size: 13px; }
-.bin { display: none; margin-top: 12px; border-style: dashed; }
+.bin { display: none; margin-top: 16px; border-style: solid; border-color: #1f8f5c;
+      background: #0c1612; }
 .bin.on { display: block; }
-.binbar { display: flex; align-items: center; gap: 9px; margin-top: 12px; }
+.bin summary { letter-spacing: -0.03em; }
+.bin .inner { padding: 2px 14px 16px; }
+.binbar { display: flex; align-items: center; gap: 9px; margin-top: 14px; }
 .binbar .spacer { flex: 1; }
 .binbar button { font-size: 13px; padding: 8px 14px; }
-.brow { display: flex; align-items: center; gap: 11px; padding: 9px 12px; margin-bottom: 4px;
-        border-radius: 9px; background: var(--paper); }
-.brow input { width: 16px; height: 16px; accent-color: var(--patina); cursor: pointer; flex: none; }
-.brow b { flex: 1; font-weight: 400; min-width: 0;
+.binbar #empty {
+  background: #3ee6a2; color: #04150e; border: 0; border-radius: 999px;
+  font-weight: 750; letter-spacing: -0.02em; padding: 10px 18px;
+}
+.brow { display: flex; align-items: center; gap: 11px; padding: 10px 12px; margin-bottom: 6px;
+        border-radius: 10px; background: #101816; border: 1px solid rgba(62, 230, 162, .28); }
+.brow input { width: 16px; height: 16px; accent-color: #3ee6a2; cursor: pointer; flex: none; }
+.bmark { width: 8px; height: 8px; border-radius: 2px; background: #3ee6a2; flex: none; }
+.brow b { flex: 1; font-weight: 650; letter-spacing: -0.02em; min-width: 0;
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brow span { color: var(--dim); font-size: 13px; }
 .update { display: none; align-items: center; gap: 14px; margin: 0 0 var(--step);
@@ -617,16 +625,27 @@ body.welcoming .update.on {
       </div>
       <div class="scene scene-empty" aria-hidden="true">
         <svg class="binart" viewBox="0 0 280 300" aria-hidden="true">
-          <path d="M62 124 h156 l-20 128 H82 z" fill="#d7dee3" stroke="#101214" stroke-width="2.4"/>
-          <path d="M96 146 h88 l-10 90 H106 z" fill="#101418" stroke="#101214" stroke-width="1.6"/>
-          <path d="M78 146 h18 l-3 88 h-12 z" fill="#fff"/>
-          <path d="M62 124 h156" fill="none" stroke="#3ee6a2" stroke-width="3"/>
-          <g class="paper"><rect x="108" y="118" width="40" height="22" rx="2" fill="#fff" stroke="#101214" stroke-width="1.7"/><path d="M108 118 h12 v8 h-12z" fill="#3ee6a2"/></g>
-          <g class="paper d2"><rect x="126" y="124" width="34" height="18" rx="2" fill="#f4fff8" stroke="#101214" stroke-width="1.7"/><path d="M126 124 h10 v7 h-10z" fill="#3ee6a2"/></g>
-          <g class="paper d3"><rect x="96" y="128" width="32" height="16" rx="2" fill="#fff" stroke="#101214" stroke-width="1.7"/></g>
+          <g class="paper">
+            <rect x="112" y="78" width="50" height="32" rx="3" fill="#fff" stroke="#101214" stroke-width="1.8"/>
+            <path d="M112 78 h16 v10 h-16z" fill="#3ee6a2"/>
+            <path d="M132 94 h24 M132 100 h16" stroke="#9aa6a0" stroke-width="1.6"/>
+          </g>
+          <g class="paper d2">
+            <rect x="128" y="88" width="44" height="26" rx="3" fill="#f4fff8" stroke="#101214" stroke-width="1.8"/>
+            <path d="M128 88 h13 v8 h-13z" fill="#3ee6a2"/>
+          </g>
+          <g class="paper d3">
+            <rect x="96" y="96" width="38" height="22" rx="3" fill="#fff" stroke="#101214" stroke-width="1.8"/>
+            <path d="M96 96 h11 v7 h-11z" fill="#3ee6a2"/>
+          </g>
+          <path d="M74 128 h132 l-16 118 H90 z" fill="#e7eef2" stroke="#101214" stroke-width="2.6"/>
+          <path d="M96 146 h88 l-10 84 H106 z" fill="#101418"/>
+          <path d="M82 142 h16 l-2 92 h-12 z" fill="#fff"/>
+          <path d="M118 156 v64 M140 156 v64 M162 156 v64" stroke="#3ee6a2" stroke-width="2" opacity=".85"/>
+          <path d="M62 116 h156 l-8 16 H70 z" fill="#141c18" stroke="#3ee6a2" stroke-width="2.4"/>
           <g class="lid">
-            <path d="M48 112 h184 l-12 18 H60 z" fill="#f7fafb" stroke="#101214" stroke-width="2.4"/>
-            <rect x="116" y="94" width="48" height="16" rx="3" fill="#3ee6a2" stroke="#101214" stroke-width="1.7"/>
+            <path d="M56 100 h168 l-10 16 H66 z" fill="#f7fafb" stroke="#101214" stroke-width="2.6"/>
+            <rect x="118" y="80" width="44" height="18" rx="4" fill="#3ee6a2" stroke="#101214" stroke-width="1.8"/>
           </g>
         </svg>
       </div>
@@ -979,6 +998,7 @@ async function loadBinItems() {
     list.innerHTML = items.map(i => `
       <div class="brow">
         <input type="checkbox" data-name="${i.name.replace(/"/g, "&quot;")}">
+        <i class="bmark"></i>
         <b>${i.name}</b><span>${i.mb ? size(i.mb) : ""}</span>
       </div>`).join("");
     for (const box of list.querySelectorAll("input")) {

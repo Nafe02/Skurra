@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.10"
+VERSION = "1.22.11"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -113,7 +113,13 @@ def allowed_folder(path):
     if WINDOWS:
         return True
     state = load_perms()
-    return state["folders"].get(str(path)) == "granted"
+    key = str(path)
+    # Each update is a different app to macOS, so a grant remembered from
+    # an older build is not permission. Reading Downloads from the scan
+    # thread is what leaves the system question up and the ring on Starting.
+    if state["folders"].get(key) != "granted":
+        return False
+    return state["grant_versions"].get(key) == VERSION
 
 
 def disk_roots():
@@ -266,9 +272,10 @@ def load_perms():
         got = json.loads(PERMS_FILE.read_text())
         return {"asked": bool(got.get("asked")),
                 "version": str(got.get("version") or ""),
-                "folders": dict(got.get("folders") or {})}
+                "folders": dict(got.get("folders") or {}),
+                "grant_versions": dict(got.get("grant_versions") or {})}
     except Exception:
-        return {"asked": False, "version": "", "folders": {}}
+        return {"asked": False, "version": "", "folders": {}, "grant_versions": {}}
 
 
 def save_perms(state):
@@ -766,13 +773,23 @@ def scan():
     # until the answer is already yes.
     downloads = HOME / "Downloads"
     if allowed_folder(downloads):
-        try:
-            entries = list(downloads.iterdir())
-        except OSError:
+        # If macOS still wants an answer, this returns and the scan carries
+        # on. Waiting here is what froze the ring on "Starting".
+        entries = without_hanging(lambda: list(downloads.iterdir()), 2)
+        if entries is None:
+            state = load_perms()
+            state["folders"][str(downloads)] = "declined"
+            versions = dict(state.get("grant_versions") or {})
+            versions.pop(str(downloads), None)
+            state["grant_versions"] = versions
+            save_perms(state)
             entries = []
         for item in entries:
-            if item.is_file() and item.suffix.lower() in INSTALLER_EXT and not is_ours(item):
-                targets.append((item, "Downloads", "installer"))
+            try:
+                if item.is_file() and item.suffix.lower() in INSTALLER_EXT and not is_ours(item):
+                    targets.append((item, "Downloads", "installer"))
+            except OSError:
+                continue
 
     # caches tucked inside each app's own data folder
     for appdata in APPDATA_DIRS:
@@ -1520,9 +1537,13 @@ def permissions():
     for r in disk_roots():
         if r == HOME:
             continue
+        remembered = state["folders"].get(str(r), "unknown")
+        if (not WINDOWS and remembered == "granted"
+                and state["grant_versions"].get(str(r)) != VERSION):
+            remembered = "unknown"
         out.append({"name": r.name, "path": str(r),
                     "why": WHY_FOLDER.get(r.name, "Measures what is in here."),
-                    "state": state["folders"].get(str(r), "unknown")})
+                    "state": remembered})
     # Skurra is ad-hoc signed, so every build is a different app to macOS and
     # an update wipes the folder grants. A decision made by an older version
     # no longer describes reality, so say so and let the page ask again.
@@ -1592,6 +1613,12 @@ def ask_permission(path):
         save_guarded(known)
     state = load_perms()
     state["folders"][str(path)] = "granted" if got else "declined"
+    versions = dict(state.get("grant_versions") or {})
+    if got:
+        versions[str(path)] = VERSION
+    else:
+        versions.pop(str(path), None)
+    state["grant_versions"] = versions
     state["asked"] = True
     state["version"] = VERSION
     save_perms(state)
