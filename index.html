@@ -477,6 +477,14 @@ body.welcoming .update.on {
   transform: translateX(-50%); width: min(700px, calc(100% - 32px));
 }
 .ask p { white-space: pre-wrap; max-height: 240px; overflow: auto; }
+.locsheet { width: min(380px, 100%); border-color: #1f8f5c; }
+.locsheet .bineye { margin: 0 0 8px; }
+.locpath {
+  margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+  background: #0c1612; border: 1px solid rgba(62, 230, 162, .45);
+  color: #f4fff8; font-size: 13px; line-height: 1.4;
+  word-break: break-all;
+}
 .sheetback {
   position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
   padding: 24px; background: rgba(0,0,0,.55);
@@ -570,6 +578,20 @@ body.welcoming .update.on {
         <button id="permskip" type="button">Continue without</button>
       </div>
       <p class="tiny2"><button class="permlink" id="permfda" type="button">Or allow them all at once in Settings</button></p>
+    </div>
+  </div>
+
+  <div class="sheetback" id="locback" hidden>
+    <div class="sheet locsheet" role="dialog" aria-labelledby="locname">
+      <p class="bineye">FILE LOCATION</p>
+      <b id="locname"></b>
+      <p id="locwhere"></p>
+      <p class="locpath" id="locpath"></p>
+      <p class="tiny" id="locmiss" hidden></p>
+      <div class="sheetbar">
+        <button id="locclose" type="button">Close</button>
+        <button class="go" id="locshow" type="button">Show in Finder</button>
+      </div>
     </div>
   </div>
 
@@ -1609,6 +1631,37 @@ async function loadRoots() {
   $("#roots").dataset.ready = "1";
 }
 
+let locPath = "";
+
+function showLoc(path) {
+  const parent = parentPath(path);
+  const name = String(path).replace(/\\/g, "/").split("/").pop();
+  locPath = path;
+  $("#locname").textContent = name || "File";
+  $("#locwhere").textContent = parent || "";
+  $("#locpath").textContent = path;
+  $("#locshow").textContent = WIN ? "Show in File Explorer" : "Show in Finder";
+  $("#locmiss").hidden = true;
+  $("#locback").hidden = false;
+}
+
+async function revealLoc(path) {
+  try {
+    const r = await (await fetch("/api/reveal", {
+      method: "POST", body: JSON.stringify({ path })
+    })).json();
+    if (!r.ok) {
+      $("#locmiss").hidden = false;
+      $("#locmiss").textContent = WIN
+        ? "File Explorer could not open this folder."
+        : "Finder could not open this folder.";
+    }
+  } catch (e) {
+    $("#locmiss").hidden = false;
+    $("#locmiss").textContent = "The path is shown here.";
+  }
+}
+
 async function openLocation(path) {
   if (String(path).indexOf("uninstall:") === 0) {
     note("This program has no folder. Remove uses its own uninstaller.");
@@ -1616,14 +1669,12 @@ async function openLocation(path) {
   }
   const parent = parentPath(path);
   if (!parent) { note("This file has no folder to open."); return; }
-  spotlight = path;
-  enterDisk();
-  $("#scan").textContent = "Refresh";
-  await loadRoots();
-  $("#diskintro").hidden = true;
-  $("#diskbody").hidden = false;
-  await openDir(parent, path);
+  showLoc(path);
+  await revealLoc(path);
 }
+
+$("#locclose").onclick = () => { $("#locback").hidden = true; };
+$("#locshow").onclick = () => { if (locPath) revealLoc(locPath); };
 
 async function openDir(path, focus) {
   if (spotlight && normPath(parentPath(spotlight)) !== normPath(path)) spotlight = "";

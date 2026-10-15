@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.13"
+VERSION = "1.22.14"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1320,6 +1320,30 @@ def is_cache(path):
             or any(p == b.resolve() for b in BROWSER_CACHES if b.exists()))
 
 
+def reveal(path):
+    """Show this file in Finder or File Explorer. Nothing is opened inside Skurra.
+
+    The path is only accepted when Disk space is already allowed to look at
+    its folder. open and explorer do the revealing, so Skurra itself does not
+    touch the folder and raise a permission question.
+    """
+    path = str(path or "")
+    if not path or path.startswith("uninstall:") or "\x00" in path:
+        return False
+    parent = str(Path(path).parent)
+    if parent in ("", ".", path):
+        return False
+    if not (can_explore(path) or can_explore(parent)):
+        return False
+    if WINDOWS:
+        subprocess.Popen(["explorer", "/select," + path])
+        return True
+    opened = subprocess.run(["open", "-R", path], capture_output=True)
+    if opened.returncode != 0:
+        opened = subprocess.run(["open", parent], capture_output=True)
+    return opened.returncode == 0
+
+
 def known_program(path):
     """The uninstaller key for this path, ignoring slash and capital differences."""
     want = os.path.normcase(os.path.normpath(str(path)))
@@ -2273,6 +2297,11 @@ class Handler(SimpleHTTPRequestHandler):
             if ok:
                 webbrowser.open(url)          # the user's normal browser, not our window
             self.reply({"ok": ok})
+            return
+
+        if self.path == "/api/reveal":
+            want = str(body.get("path", "")) if isinstance(body, dict) else ""
+            self.reply({"ok": reveal(want)})
             return
 
         if self.path == "/api/permission-ask":
