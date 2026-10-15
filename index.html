@@ -387,7 +387,11 @@ h3.important { color: #b5643d; }
 .frow .nm b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .frow.isdir .nm { cursor: pointer; }
 .frow.isdir .nm:hover b { color: var(--patina); }
-.frow.spot, .row.spot { box-shadow: inset 0 0 0 2px #3ee6a2; }
+.frow.spot, .row.spot {
+  box-shadow: inset 0 0 0 2px #3ee6a2;
+  background: #10241b;
+}
+.frow.spot b { color: #f4fff8; }
 .locate {
   flex: none; font-size: 12px; font-weight: 700; letter-spacing: -0.01em;
   padding: 6px 10px; border-radius: 999px; cursor: pointer;
@@ -445,7 +449,10 @@ h3.important { color: #b5643d; }
 .bin { display: none; margin-top: 16px; border-style: solid; border-color: #1f8f5c;
       background: #0c1612; }
 .bin.on { display: block; }
-.bin summary { letter-spacing: -0.03em; }
+.bin summary { letter-spacing: -0.03em; font-size: 18px; font-weight: 720; }
+.bin .bineye {
+  margin: 0 0 6px; font-size: 11px; font-weight: 750; letter-spacing: .28em; color: #3ee6a2;
+}
 .bin .inner { padding: 2px 14px 16px; }
 .binbar { display: flex; align-items: center; gap: 9px; margin-top: 14px; }
 .binbar .spacer { flex: 1; }
@@ -748,6 +755,7 @@ body.welcoming .update.on {
   <details class="box bin" id="bin" ontoggle="if (this.open) loadBinItems()">
     <summary><span id="bintitle">Trash</span> <span class="meta" id="binmsg"></span></summary>
     <div class="inner">
+      <p class="bineye">IN THE BIN</p>
       <p class="sub" id="binsub"></p>
       <div id="binlist"><div class="empty2">Opening\u2026</div></div>
       <div class="binbar">
@@ -1463,6 +1471,7 @@ function drawSun(data) {
 }
 
 function drawDisk(data) {
+  data = pinSpotlight(data || {});
   here = data;
   dirRows = data.items;
   $("#crumbs").innerHTML = data.crumbs.map((c, n) =>
@@ -1512,12 +1521,50 @@ function drawDisk(data) {
     box.onchange = () => { box.checked ? dpick.add(box.dataset.path) : dpick.delete(box.dataset.path); refreshDisk(); updateSun(); };
   }
   drawSun(data);
+  if (data.note && $("#disksub")) $("#disksub").textContent = data.note;
   markRoot(data.path);
   refreshDisk();
 }
 
 let dirTicket = 0;
 let spotlight = "";
+
+function pinSpotlight(data) {
+  if (!spotlight) return data;
+  const items = (data.items || []).slice();
+  const hit = items.find(i => normPath(i.path) === normPath(spotlight));
+  if (hit) {
+    if (!hit.mb) {
+      const known = rows.find(r => normPath(r.path) === normPath(spotlight));
+      if (known) hit.mb = known.mb;
+    }
+    spotlight = hit.path;
+    data.items = items;
+    return data;
+  }
+  const known = rows.find(r => normPath(r.path) === normPath(spotlight));
+  const leaf = String(spotlight).replace(/\\/g, "/").split("/").pop();
+  const kind = known ? known.kind : "";
+  const isFile = kind === "installer" || (kind !== "app" && kind !== "cache" && kind !== "idle"
+    && /\.[a-z0-9]{1,8}$/i.test(leaf || ""));
+  items.unshift({
+    name: known ? known.name : leaf,
+    path: spotlight,
+    dir: !isFile,
+    mb: known ? known.mb : 0,
+    days: known ? (known.days || 0) : 0,
+    files: 1,
+  });
+  data.items = items;
+  data.error = "";
+  if (!data.path) data.path = parentPath(spotlight);
+  if (!data.crumbs || !data.crumbs.length) {
+    const parent = data.path || parentPath(spotlight);
+    const label = String(parent).replace(/\\/g, "/").split("/").pop() || "Folder";
+    data.crumbs = [{name: label, path: parent}];
+  }
+  return data;
+}
 
 function normPath(p) {
   return String(p || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
@@ -1563,6 +1610,10 @@ async function loadRoots() {
 }
 
 async function openLocation(path) {
+  if (String(path).indexOf("uninstall:") === 0) {
+    note("This program has no folder. Remove uses its own uninstaller.");
+    return;
+  }
   const parent = parentPath(path);
   if (!parent) { note("This file has no folder to open."); return; }
   spotlight = path;
@@ -1571,21 +1622,23 @@ async function openLocation(path) {
   await loadRoots();
   $("#diskintro").hidden = true;
   $("#diskbody").hidden = false;
-  await openDir(parent);
+  await openDir(parent, path);
 }
 
-async function openDir(path) {
+async function openDir(path, focus) {
   if (spotlight && normPath(parentPath(spotlight)) !== normPath(path)) spotlight = "";
   const ticket = ++dirTicket;
   diskQuery = "";
   const box = $("#dfind");
   if (box) box.value = "";
-  busy(true, "Measuring this folder. Big ones take a moment.", "Measuring");
+  busy(true, "Opening this file.", "Measuring");
+  const url = "/api/explore?path=" + encodeURIComponent(path)
+    + (focus ? "&focus=" + encodeURIComponent(focus) : "");
   // A slower folder must not paint over the one the person clicked later.
   for (const attempt of [1, 2]) {
     if (ticket !== dirTicket) return;
     try {
-      const d = await (await fetch("/api/explore?path=" + encodeURIComponent(path))).json();
+      const d = await (await fetch(url)).json();
       if (ticket !== dirTicket) return;
       await finish();
       if (ticket !== dirTicket) return;
@@ -1608,6 +1661,11 @@ function refreshDisk() {
   $("#trash").disabled = !picked.length;
   $("#trash").innerHTML = (WIN ? "Move to Recycle Bin" : "Move to Trash") +
     (picked.length ? ` <span class="count">(${picked.length} \u00b7 ${size(mb)})</span>` : "");
+  const spot = dirRows.find(i => spotlight && normPath(i.path) === normPath(spotlight));
+  if (spot && !picked.length) {
+    note(`This is ${spot.name}. Tick it to remove it, or leave it.`);
+    return;
+  }
   note(picked.length ? `${picked.length} selected, ${size(mb)}.`
                      : `${here ? size(here.mb) : ""} in this folder. Tick what you no longer need.`);
 }

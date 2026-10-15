@@ -1,5 +1,5 @@
 {
-  "version": "1.22.12",
+  "version": "1.22.13",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Open location stays inside Skurra, and the welcome page is sharper."
+  "notes": "Open location shows the exact file, so you can remove it or leave it."
 }

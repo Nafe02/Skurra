@@ -32,7 +32,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.12"
+VERSION = "1.22.13"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1043,6 +1043,69 @@ explore_progress = {"done": 0, "total": 1, "where": ""}
 explore_lock = threading.Lock()
 
 
+def can_explore(path):
+    """May Disk space open this folder?
+
+    String compare only. resolve() on Downloads or Desktop is enough to raise
+    the Mac question, and treating that as "outside home" is why Open location
+    showed an error instead of the file. Apps also live outside the home
+    folder, on both Mac and Windows, and the Clean up list already named them.
+    """
+    raw = os.path.normcase(os.path.normpath(str(path)))
+    home = os.path.normcase(os.path.normpath(str(HOME)))
+    if raw == home or raw.startswith(home + os.sep):
+        return True
+    roots = [Path(p) for p in APP_FOLDERS]
+    if WINDOWS:
+        for key in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"):
+            folder = os.environ.get(key)
+            if folder:
+                roots.append(Path(folder))
+    for root in roots:
+        base = os.path.normcase(os.path.normpath(str(root)))
+        if raw == base or raw.startswith(base + os.sep):
+            return True
+    return False
+
+
+def focus_stub(focus, parent):
+    """The one file Open location asked for, even if the folder listing hid it."""
+    focus = str(focus or "")
+    if not focus:
+        return None
+    child = Path(focus)
+    parent_s = os.path.normcase(os.path.normpath(str(parent)))
+    child_parent = os.path.normcase(os.path.normpath(str(child.parent)))
+    if parent_s != child_parent or child.name in ("", ".", ".."):
+        return None
+    suffix = child.suffix.lower()
+    is_dir = suffix == ".app" or suffix not in INSTALLER_EXT and "." not in suffix
+    if suffix in INSTALLER_EXT:
+        is_dir = False
+    return {
+        "name": child.name,
+        "path": focus,
+        "dir": is_dir,
+        "kind": kind_of(focus, is_dir),
+        "mb": 0,
+        "files": 1,
+        "days": 0,
+        "approx": False,
+    }
+
+
+def attach_focus(items, parent, focus):
+    stub = focus_stub(focus, parent)
+    if not stub:
+        return items
+    key = os.path.normcase(os.path.normpath(stub["path"]))
+    for it in items:
+        if os.path.normcase(os.path.normpath(it["path"])) == key:
+            return items
+    items.insert(0, stub)
+    return items
+
+
 def folder_size(path, deadline=None):
     """Bytes inside a folder, how many files, and whether it got to the end."""
     total, count, whole = 0, 0, True
@@ -1070,7 +1133,7 @@ def list_folder(p):
             and not is_ours(e.path)]
 
 
-def explore(path):
+def explore(path, focus=""):
     """Everything one level inside a folder, each with its true size."""
     p = Path(path)
     # Even listing a folder can stop dead behind a macOS permission dialog,
@@ -1080,6 +1143,13 @@ def explore(path):
         guarded = load_guarded()
         guarded.add(str(p))
         save_guarded(guarded)
+        pinned = attach_focus([], p, focus)
+        if pinned:
+            return {"path": str(p), "parent": str(p.parent), "crumbs": [
+                        {"name": p.name or str(p), "path": str(p)}],
+                    "items": pinned, "totals": {},
+                    "mb": 0,
+                    "note": "The rest of this folder could not be read. This file is still here."}
         return {"error": "macOS wants permission for this folder", "path": str(p),
                 "parent": str(p.parent), "crumbs": [], "items": [], "totals": {}, "mb": 0}
 
@@ -1118,6 +1188,7 @@ def explore(path):
     explore_progress["done"] = explore_progress["total"]
 
     items.sort(key=lambda r: r["mb"], reverse=True)
+    items = attach_focus(items, p, focus)
     totals = {}
     for it in items:
         k = "folder" if it["dir"] else it["kind"]
@@ -1138,13 +1209,19 @@ def explore(path):
             "mb": round(sum(i["mb"] for i in items), 1)}
 
 
-def explore_once(path):
+def explore_once(path, focus=""):
     """One walk at a time, but never queue forever behind a stuck one."""
     if not explore_lock.acquire(timeout=45):
+        pinned = attach_focus([], path, focus)
+        if pinned:
+            return {"path": str(path), "parent": str(Path(path).parent), "crumbs": [
+                        {"name": Path(path).name or str(path), "path": str(path)}],
+                    "items": pinned, "totals": {}, "mb": 0,
+                    "note": "Skurra is still measuring another folder. This file is shown on its own."}
         return {"error": "Skurra is still measuring another folder", "path": str(path),
                 "parent": "", "crumbs": [], "items": [], "totals": {}, "mb": 0}
     try:
-        return explore(path)
+        return explore(path, focus)
     finally:
         explore_lock.release()
 
@@ -1168,7 +1245,7 @@ def allowed(path):
     """Returns (yes_or_no, reason). A path has to clear every gate."""
     if is_ours(path):
         return False, "Skurra is running from here"
-    if str(path) in uninstallers:
+    if known_program(path):
         return True, ""                      # a Windows program, removed by its uninstaller
     try:
         p = Path(path).resolve(strict=True)
@@ -1243,10 +1320,20 @@ def is_cache(path):
             or any(p == b.resolve() for b in BROWSER_CACHES if b.exists()))
 
 
+def known_program(path):
+    """The uninstaller key for this path, ignoring slash and capital differences."""
+    want = os.path.normcase(os.path.normpath(str(path)))
+    for key in uninstallers:
+        if os.path.normcase(os.path.normpath(str(key))) == want:
+            return key
+    return ""
+
+
 def to_trash(path):
-    if str(path) in uninstallers:
+    key = known_program(path)
+    if key:
         # Windows programs are not files to move; hand over to their uninstaller.
-        name, cmd, kb = uninstallers[str(path)]
+        name, cmd, kb = uninstallers[key]
         try:
             subprocess.Popen(cmd, shell=True)
             return True
@@ -2162,11 +2249,14 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply([{"name": "Home" if r == HOME else r.name, "path": str(r)} for r in disk_roots()])
         elif self.path.startswith("/api/explore"):
             q = urllib.parse.urlparse(self.path).query
-            want = urllib.parse.parse_qs(q).get("path", [str(HOME)])[0]
-            if not (want == str(HOME) or inside_home(want)):
-                self.reply({"error": "outside your home folder", "items": []})
+            parsed = urllib.parse.parse_qs(q)
+            want = parsed.get("path", [str(HOME)])[0]
+            focus = parsed.get("focus", [""])[0]
+            if not can_explore(want):
+                self.reply({"error": "outside your home folder", "path": want,
+                            "parent": "", "crumbs": [], "items": [], "totals": {}, "mb": 0})
                 return
-            self.reply(explore_once(want))
+            self.reply(explore_once(want, focus))
         elif self.path == "/api/exploring":
             self.reply(explore_progress)
         else:
