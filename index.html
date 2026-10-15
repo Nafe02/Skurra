@@ -79,20 +79,30 @@ h2 { font-size: 17px; font-weight: 600; margin: calc(var(--step) * 1.4) 0 2px; }
 }
 .welcome[hidden] { display: none; }
 .welcomecard {
-  width: min(440px, 100%); text-align: center;
-  padding: 36px 34px 28px; border-radius: 16px;
+  width: min(480px, 100%); text-align: center;
+  padding: 32px 36px 28px; border-radius: 18px;
   background: #101518;
-  border: 1px solid rgba(255,255,255,.34);
-  box-shadow: 0 16px 40px rgba(0,0,0,.55);
+  border: 1px solid rgba(62, 230, 162, .45);
+  box-shadow: 0 18px 48px rgba(0,0,0,.55);
 }
 .eyebrow {
-  margin: 0 0 16px; font-size: 12px; font-weight: 700; letter-spacing: .32em; color: #3ee6a2;
+  margin: 0 0 10px; font-size: 12px; font-weight: 750; letter-spacing: .32em; color: #3ee6a2;
 }
-.welcomemon { width: min(280px, 72vw); height: auto; display: block; margin: 0 auto 2px; }
+.welcomering { position: relative; width: 168px; height: 168px; margin: 0 auto 6px; }
+.welcomering svg { width: 100%; height: 100%; display: block; }
+.welcomering b {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 22px; font-weight: 760; letter-spacing: -0.04em; color: #fff;
+}
 .welcomecard h2 {
-  margin: 8px 0 8px; font-size: 44px; font-weight: 760; letter-spacing: -0.055em; color: #fff;
+  margin: 6px 0 8px; font-size: 40px; font-weight: 760; letter-spacing: -0.055em; color: #fff;
 }
-.welcomecard p { margin: 0 auto; max-width: 300px; color: #d5ddd9; font-size: 16px; line-height: 1.4; }
+.welcomecard p { margin: 0 auto; max-width: 340px; color: #d5ddd9; font-size: 16px; line-height: 1.4; }
+.welcomesteps { display: flex; justify-content: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+.welcomesteps span {
+  font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase;
+  color: #3ee6a2; border: 1px solid #1f8f5c; border-radius: 999px; padding: 6px 12px;
+}
 button.scanbig {
   margin-top: 28px; background: #3ee6a2; color: #04150e; border: 0; border-radius: 999px;
   padding: 14px 52px; font-size: 17px; font-weight: 750; letter-spacing: -0.02em;
@@ -377,6 +387,13 @@ h3.important { color: #b5643d; }
 .frow .nm b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .frow.isdir .nm { cursor: pointer; }
 .frow.isdir .nm:hover b { color: var(--patina); }
+.frow.spot, .row.spot { box-shadow: inset 0 0 0 2px #3ee6a2; }
+.locate {
+  flex: none; font-size: 12px; font-weight: 700; letter-spacing: -0.01em;
+  padding: 6px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid #1f8f5c; background: #0c1612; color: #3ee6a2;
+}
+.locate:hover { background: #3ee6a2; color: #04150e; border-color: #3ee6a2; }
 .frow .sz { font-weight: 500; font-size: 14px; }
 .frow .sz i { font-style: normal; color: var(--dim); font-size: 12px; margin-right: 2px; }
 .frow .ag { color: var(--dim); font-size: 12px; width: 78px; text-align: right; white-space: nowrap; }
@@ -509,27 +526,17 @@ body.welcoming .update.on {
 <div class="welcome" id="welcome" hidden>
   <div class="welcomecard">
     <p class="eyebrow">SKURRA</p>
-    <svg class="welcomemon" viewBox="0 0 320 210" aria-hidden="true">
-      <defs>
-        <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#1c4a38"/>
-          <stop offset="1" stop-color="#0a1612"/>
-        </linearGradient>
-        <linearGradient id="bezel" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#5c6b76"/>
-          <stop offset=".45" stop-color="#2a343c"/>
-          <stop offset="1" stop-color="#12181c"/>
-        </linearGradient>
-      </defs>
-      <rect x="108" y="176" width="104" height="6" rx="1" fill="#d7dee2"/>
-      <rect x="146" y="162" width="28" height="16" fill="#9aa6ad"/>
-      <rect x="28" y="14" width="264" height="150" rx="12" fill="#1a2228" stroke="#e8eeef" stroke-width="2"/>
-      <rect x="40" y="26" width="240" height="126" rx="4" fill="#07110e" stroke="#3ee6a2" stroke-width="1.5"/>
-      <path d="M64 118 C112 42 188 36 248 78" fill="none" stroke="#3ee6a2" stroke-width="3.5" stroke-linecap="round"/>
-      <circle cx="248" cy="78" r="4.5" fill="#f4fff8"/>
-    </svg>
+    <div class="welcomering" aria-hidden="true">
+      <svg viewBox="0 0 220 220">
+        <circle cx="110" cy="110" r="92" fill="none" stroke="#1f8f5c" stroke-width="8"/>
+        <circle cx="110" cy="110" r="92" fill="none" stroke="#3ee6a2" stroke-width="8"
+          stroke-dasharray="578.05" stroke-dashoffset="200" transform="rotate(-90 110 110)"/>
+      </svg>
+      <b>Scan</b>
+    </div>
     <h2>Welcome to Skurra</h2>
     <p>Scan finds what you can clear.</p>
+    <div class="welcomesteps"><span>Caches</span><span>Leftovers</span><span>Apps</span></div>
     <button class="scanbig" id="welcomescan" type="button">Scan</button>
   </div>
 </div>
@@ -1058,6 +1065,7 @@ function rowsFor(kind, list, biggest, limit) {
         <button class="peek" type="button" data-peek="${esc(r.path)}" title="See what is inside"><span>\u203a</span></button>
         <input type="checkbox" data-path="${esc(r.path)}" ${chosen.has(r.path) ? "checked" : ""}>
         <span class="who"><b>${mark(r.name, query)}<span class="tag">${tag}</span></b><em>${mark(r.where, query)}${r.why ? " · " + esc(r.why) : ""}</em></span>
+        <button class="locate" type="button" data-loc="${esc(r.path)}">Open location</button>
         <span class="num">${size(r.mb)}</span>
         <span class="age">${age}</span>
         <span class="state"><b>${r.change}</b><em>${r.when || ""}</em></span>
@@ -1172,6 +1180,9 @@ function draw() {
       box.checked ? chosen.add(box.dataset.path) : chosen.delete(box.dataset.path);
       refresh();
     };
+  }
+  for (const b of document.querySelectorAll(".row .locate")) {
+    b.onclick = () => openLocation(b.dataset.loc);
   }
   for (const b of document.querySelectorAll(".peek")) {
     b.onclick = async () => {
@@ -1477,9 +1488,11 @@ function drawDisk(data) {
     const c = colourOf.get(i.path) || FILE_TINT;
     const w = Math.max(2, Math.round(i.mb / biggest * 100));
     const age = i.days === 0 ? "today" : i.days === 1 ? "yesterday" : i.days + " days ago";
-    return `<div class="frow ${i.dir ? "isdir" : ""}">
+    const spot = spotlight && normPath(i.path) === normPath(spotlight) ? " spot" : "";
+    return `<div class="frow ${i.dir ? "isdir" : ""}${spot}">
       <span class="fill" style="width:${w}%;background:${c}"></span>
       <input type="checkbox" data-path="${esc(i.path)}" ${dpick.has(i.path) ? "checked" : ""}>
+      <button class="locate" type="button" data-loc="${esc(i.path)}">Open location</button>
       <span class="nm" data-go="${i.dir ? esc(i.path) : ""}"><i class="dot2" style="background:${c}"></i>
         <b>${mark(i.name, diskQuery)}</b>${i.dir ? `<em style="font-style:normal;color:var(--dim);font-size:12px">${i.files} files</em>` : ""}</span>
       <span class="sz">${i.approx ? "<i>over</i> " : ""}${size(i.mb)}</span>
@@ -1490,6 +1503,11 @@ function drawDisk(data) {
   for (const nm of $("#flist").querySelectorAll(".nm[data-go]")) {
     if (nm.dataset.go) nm.onclick = () => openDir(nm.dataset.go);
   }
+  for (const b of $("#flist").querySelectorAll(".locate")) {
+    b.onclick = () => openLocation(b.dataset.loc);
+  }
+  const hit = $("#flist").querySelector(".frow.spot");
+  if (hit) hit.scrollIntoView({ block: "nearest" });
   for (const box of $("#flist").querySelectorAll("input")) {
     box.onchange = () => { box.checked ? dpick.add(box.dataset.path) : dpick.delete(box.dataset.path); refreshDisk(); updateSun(); };
   }
@@ -1499,8 +1517,65 @@ function drawDisk(data) {
 }
 
 let dirTicket = 0;
+let spotlight = "";
+
+function normPath(p) {
+  return String(p || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+}
+
+function parentPath(path) {
+  const clean = String(path || "").replace(/\\/g, "/").replace(/\/+$/, "");
+  const cut = clean.lastIndexOf("/");
+  if (cut <= 0) return "";
+  const parent = clean.slice(0, cut);
+  const orig = String(path);
+  const back = orig.indexOf("\\") !== -1 && orig.indexOf("/") === -1;
+  return back ? parent.replace(/\//g, "\\") : parent;
+}
+
+function enterDisk() {
+  view = "disk";
+  for (const o of document.querySelectorAll(".view")) o.classList.toggle("on", o.dataset.view === "disk");
+  $("#out").hidden = true;
+  $("#diskview").hidden = false;
+  document.body.classList.add("wide");
+  $("#pick").hidden = true;
+  $("#clear").hidden = true;
+  $("#finder").hidden = true;
+}
+
+async function loadRoots() {
+  if ($("#roots").dataset.ready === "1") return;
+  const roots = await (await fetch("/api/roots")).json();
+  $("#roots").innerHTML = roots.map(r =>
+    `<button class="root" type="button" data-p="${r.path}">${r.name}</button>`).join("");
+  for (const b of $("#roots").querySelectorAll(".root")) {
+    b.onclick = () => {
+      spotlight = "";
+      for (const o of $("#roots").children) o.classList.toggle("on", o === b);
+      $("#diskintro").hidden = true;
+      $("#diskbody").hidden = false;
+      $("#scan").textContent = "Refresh";
+      openDir(b.dataset.p);
+    };
+  }
+  $("#roots").dataset.ready = "1";
+}
+
+async function openLocation(path) {
+  const parent = parentPath(path);
+  if (!parent) { note("This file has no folder to open."); return; }
+  spotlight = path;
+  enterDisk();
+  $("#scan").textContent = "Refresh";
+  await loadRoots();
+  $("#diskintro").hidden = true;
+  $("#diskbody").hidden = false;
+  await openDir(parent);
+}
 
 async function openDir(path) {
+  if (spotlight && normPath(parentPath(spotlight)) !== normPath(path)) spotlight = "";
   const ticket = ++dirTicket;
   diskQuery = "";
   const box = $("#dfind");
@@ -1538,20 +1613,12 @@ function refreshDisk() {
 }
 
 async function showDisk() {
-  const roots = await (await fetch("/api/roots")).json();
+  enterDisk();
+  $("#scan").textContent = "Scan";
+  await loadRoots();
   $("#diskintro").hidden = false;
   $("#diskbody").hidden = true;
-  $("#roots").innerHTML = roots.map(r =>
-    `<button class="root" type="button" data-p="${r.path}">${r.name}</button>`).join("");
-  for (const b of $("#roots").querySelectorAll(".root")) {
-    b.onclick = () => {
-      for (const o of $("#roots").children) o.classList.toggle("on", o === b);
-      $("#diskintro").hidden = true;
-      $("#diskbody").hidden = false;
-      $("#scan").textContent = "Refresh";
-      openDir(b.dataset.p);
-    };
-  }
+  for (const o of $("#roots").children) o.classList.remove("on");
   here = null;
   dirRows = [];
   dpick.clear();
