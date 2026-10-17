@@ -127,6 +127,16 @@ kbd { font: inherit; font-size: 13px; padding: 1px 6px; border-radius: 6px; bord
 .center .buttons { justify-content: center; }
 footer { padding: 28px; border-top: 1px solid rgba(62,230,162,.18); color: var(--dim); font-size: 13px; text-align: center; }
 footer a { color: var(--dim); }
+
+.reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s ease; }
+.reveal.in { opacity: 1; transform: none; }
+.reveal.d1 { transition-delay: .1s; }
+.reveal.d2 { transition-delay: .2s; }
+.reveal.d3 { transition-delay: .3s; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  html { scroll-behavior: auto; }
+}
 </style>
 </head>
 <body>
@@ -168,7 +178,7 @@ footer a { color: var(--dim); }
         <circle cx="110" cy="110" r="92" fill="none" stroke="#1f8f5c" stroke-width="8"/>
         <circle class="fill" cx="110" cy="110" r="92" fill="none" stroke="#3ee6a2" stroke-width="8" stroke-dasharray="578" stroke-dashoffset="210"/>
       </svg>
-      <div class="gmid"><b>62%</b><span>SKURRA</span></div>
+      <div class="gmid"><b id="scanpct">62%</b><span>SKURRA</span></div>
     </div>
     <p>Scanning your system</p>
   </div>
@@ -176,36 +186,36 @@ footer a { color: var(--dim); }
 
 <section id="tools">
   <div class="wrap">
-    <p class="eyebrow">TOOLS</p>
-    <h2>What Skurra actually does</h2>
-    <p class="sub">Each one stays on its own screen until the work is finished.</p>
+    <p class="eyebrow reveal">TOOLS</p>
+    <h2 class="reveal">What Skurra actually does</h2>
+    <p class="sub reveal d1">Each one stays on its own screen until the work is finished.</p>
     <div class="grid">
-      <article class="card">
+      <article class="card reveal">
         <p class="mark">SCAN</p>
         <b>A green ring, with the percent</b>
         <p>Scan measures caches, leftovers and apps. The ring stays green, and the percent stays with it.</p>
       </article>
-      <article class="card">
+      <article class="card reveal d1">
         <p class="mark">DUSTER</p>
         <b>Clearing stays on the duster</b>
         <p>Caches are cleared in place. When it finishes you still see the duster, the amount, and what went.</p>
       </article>
-      <article class="card">
+      <article class="card reveal d2">
         <p class="mark">DISK</p>
         <b>Nothing listed until you pick a folder</b>
         <p>Disk space opens on Home, Downloads, Desktop and the rest. The chart and the files appear only after you choose one.</p>
       </article>
-      <article class="card">
+      <article class="card reveal">
         <p class="mark">LOCATION</p>
         <b>A small window, then the folder</b>
         <p>The window names the file and the path. Show in Finder on a Mac, Show in File Explorer on Windows.</p>
       </article>
-      <article class="card">
+      <article class="card reveal d1">
         <p class="mark">BIN</p>
         <b>Trash and Recycle Bin</b>
         <p>See what is in the bin, delete the ones you tick, or empty it. Papers leave the bin. You can still put things back until you do.</p>
       </article>
-      <article class="card">
+      <article class="card reveal d2">
         <p class="mark">UPDATE</p>
         <b>Update now, on both</b>
         <p>A new version installs from inside Skurra and restarts. The same button is on Mac and Windows.</p>
@@ -216,7 +226,7 @@ footer a { color: var(--dim); }
 
 <section id="disk">
   <div class="wrap split">
-    <div>
+    <div class="reveal">
       <p class="eyebrow">DISK SPACE</p>
       <h2>Folders get the colour. Files stay quiet.</h2>
       <p class="sub">The ring and the legend mark folders. Files are one grey, so a download does not look like a random category.</p>
@@ -226,7 +236,7 @@ footer a { color: var(--dim); }
         <li>Tick what you do not need. It goes to the Trash or Recycle Bin.</li>
       </ul>
     </div>
-    <div class="stage" aria-hidden="true">
+    <div class="stage reveal d2" aria-hidden="true">
       <div class="stage-top"><span class="chip">Clean up</span><span class="chip on">Disk space</span></div>
       <div class="finder"><i></i> Filter this folder by name</div>
       <div class="row"><i class="sw folder"></i><b>Portfolio-Site</b><span>1.6 GB</span></div>
@@ -239,12 +249,12 @@ footer a { color: var(--dim); }
 
 <section id="location">
   <div class="wrap split">
-    <div>
+    <div class="reveal">
       <p class="eyebrow">OPEN LOCATION</p>
       <h2>The path, then the real folder.</h2>
       <p class="sub">A small window names the file and the folder. Finder or File Explorer then opens on that exact file.</p>
     </div>
-    <div class="pop" aria-label="File location window">
+    <div class="pop reveal d2" aria-label="File location window">
       <p class="mark">FILE LOCATION</p>
       <b>setup.exe</b>
       <em>Downloads</em>
@@ -259,11 +269,11 @@ footer a { color: var(--dim); }
 
 <section id="open">
   <div class="wrap">
-    <p class="eyebrow">FIRST OPEN</p>
-    <h2>Your computer asks once.</h2>
-    <p class="sub">Skurra is not registered with Apple or Microsoft yet. After that first yes, later versions use Update now.</p>
+    <p class="eyebrow reveal">FIRST OPEN</p>
+    <h2 class="reveal">Your computer asks once.</h2>
+    <p class="sub reveal d1">Skurra is not registered with Apple or Microsoft yet. After that first yes, later versions use Update now.</p>
     <div class="two">
-      <article class="card">
+      <article class="card reveal">
         <p class="mark">MAC</p>
         <b>Download for Mac</b>
         <ol class="steps">
@@ -271,7 +281,7 @@ footer a { color: var(--dim); }
           <li>If macOS says it was blocked, open <kbd>Privacy &amp; Security</kbd> and click <kbd>Open Anyway</kbd>.</li>
         </ol>
       </article>
-      <article class="card">
+      <article class="card reveal d1">
         <p class="mark">WINDOWS</p>
         <b>Download for Windows</b>
         <ol class="steps">
@@ -285,9 +295,9 @@ footer a { color: var(--dim); }
 
 <section>
   <div class="wrap center">
-    <h2>Ready when you are</h2>
-    <p class="sub">One download. Nothing is removed until you tick it and confirm.</p>
-    <div class="buttons">
+    <h2 class="reveal">Ready when you are</h2>
+    <p class="sub reveal d1">One download. Nothing is removed until you tick it and confirm.</p>
+    <div class="buttons reveal d2">
       <a class="btn" href="https://github.com/nafe02/Skurra/releases/latest/download/Skurra.dmg">Download for Mac</a>
       <a class="btn alt" href="https://github.com/nafe02/Skurra/releases/latest/download/Skurra.exe">Download for Windows</a>
     </div>
@@ -319,6 +329,36 @@ const plat = (navigator.userAgentData && navigator.userAgentData.platform) || na
 const ua = navigator.userAgent;
 const os = /win/i.test(plat) || /Windows/.test(ua) ? "windows" : /mac/i.test(plat) || /Macintosh/.test(ua) ? "mac" : "other";
 arrangeFor(os);
+
+const fill = document.querySelector(".ringwrap .fill");
+const pctEl = document.getElementById("scanpct");
+const CIRC = 578.05;
+const ease = t => 1 - Math.pow(1 - t, 3);
+function paintScan(pct) {
+  const p = Math.max(0, Math.min(100, pct));
+  fill.style.strokeDashoffset = String(CIRC * (1 - p / 100));
+  pctEl.textContent = Math.round(p) + "%";
+}
+function scanLoop() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { paintScan(62); return; }
+  const hold = 700, run = 2800, rest = 900, from = 62, to = 100;
+  const t0 = performance.now();
+  const step = now => {
+    const t = now - t0;
+    if (t < hold) paintScan(from);
+    else if (t < hold + run) paintScan(from + (to - from) * ease((t - hold) / run));
+    else if (t < hold + run + rest) paintScan(to);
+    else { scanLoop(); return; }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+scanLoop();
+
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+}), { threshold: 0.15 });
+document.querySelectorAll(".reveal").forEach(el => io.observe(el));
 </script>
 </body>
 </html>
