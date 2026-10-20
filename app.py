@@ -10,6 +10,7 @@ otherwise falls back to your browser. Force the browser with SKURRA_BROWSER=1.
 import datetime
 import json
 import os
+from collections import deque
 import plistlib
 import shutil
 import signal
@@ -32,7 +33,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.15"
+VERSION = "1.22.16"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1043,6 +1044,32 @@ explore_progress = {"done": 0, "total": 1, "where": ""}
 explore_lock = threading.Lock()
 
 
+def norm_key(path):
+    return os.path.normcase(os.path.normpath(str(path)))
+
+
+def in_home_text(path):
+    """True when the path is the home folder or inside it. No resolve(), no dialog."""
+    raw = norm_key(path)
+    home = norm_key(HOME)
+    return raw == home or raw.startswith(home + os.sep)
+
+
+def guarded_folder(path):
+    """Desktop, Downloads, and the other folders macOS asks about. None on Windows."""
+    if WINDOWS:
+        return None
+    raw = norm_key(path)
+    home = norm_key(HOME)
+    for name in ("Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music"):
+        root = norm_key(HOME / name)
+        if raw == root or raw.startswith(root + os.sep):
+            return HOME / name
+    if raw == home:
+        return None
+    return None
+
+
 def can_explore(path):
     """May Disk space open this folder?
 
@@ -1050,9 +1077,10 @@ def can_explore(path):
     the Mac question, and treating that as "outside home" is why Open location
     showed an error instead of the file. Apps also live outside the home
     folder, on both Mac and Windows, and the Clean up list already named them.
+    A search can also land on another disk, so those folders open too.
     """
-    raw = os.path.normcase(os.path.normpath(str(path)))
-    home = os.path.normcase(os.path.normpath(str(HOME)))
+    raw = norm_key(path)
+    home = norm_key(HOME)
     if raw == home or raw.startswith(home + os.sep):
         return True
     roots = [Path(p) for p in APP_FOLDERS]
@@ -1062,10 +1090,231 @@ def can_explore(path):
             if folder:
                 roots.append(Path(folder))
     for root in roots:
-        base = os.path.normcase(os.path.normpath(str(root)))
+        base = norm_key(root)
         if raw == base or raw.startswith(base + os.sep):
             return True
+    if WINDOWS:
+        if len(raw) >= 3 and raw[1] == ":":
+            rest = raw[2:].lstrip("\\/")
+            top = rest.split("\\")[0].split("/")[0].casefold()
+            if top in {"windows", "program files", "program files (x86)", "programdata",
+                       "$recycle.bin", "system volume information", "recovery"}:
+                return False
+            return True
+        return False
+    low = raw.lower()
+    if low == "/applications" or low.startswith("/applications" + os.sep):
+        return True
+    if low.startswith("/volumes" + os.sep):
+        return True
     return False
+
+
+# Names that hang a walk or belong to the system, not to a folder someone wants to bin.
+SEARCH_SKIP = {
+    "clouddocs", "com.apple.clouddocs", "mobile documents",
+    "fileprovider", "com.apple.fileprovider",
+    "node_modules", ".git", ".svn", "__pycache__",
+    "$recycle.bin", "system volume information", "recovery",
+    "windows", "program files", "program files (x86)", "programdata",
+}
+
+
+def search_starts():
+    """Where a whole-computer search begins. Home first, then other disks."""
+    found, seen = [], set()
+
+    def add(path):
+        key = norm_key(path)
+        if not key or key in seen:
+            return
+        seen.add(key)
+        found.append(os.path.normpath(str(path)))
+
+    add(HOME)
+    if WINDOWS:
+        try:
+            import ctypes
+            mask = ctypes.windll.kernel32.GetLogicalDrives()
+            for i in range(26):
+                if mask & (1 << i):
+                    add(f"{chr(65 + i)}:\\")
+        except Exception:
+            pass
+        for root in disk_roots():
+            add(root)
+        return found
+    add("/Applications")
+    try:
+        boot = os.stat("/").st_dev
+    except OSError:
+        boot = None
+    try:
+        for name in os.listdir("/Volumes"):
+            if name.startswith("."):
+                continue
+            path = os.path.join("/Volumes", name)
+            try:
+                if boot is not None and os.stat(path).st_dev == boot:
+                    continue
+            except OSError:
+                continue
+            add(path)
+    except OSError:
+        pass
+    return found
+
+
+def search_hit(path, name, is_dir):
+    parent = str(Path(path).parent)
+    return {
+        "name": name,
+        "path": path,
+        "dir": bool(is_dir),
+        "kind": kind_of(path, bool(is_dir)),
+        "mb": 0,
+        "files": 0,
+        "days": 0,
+        "approx": True,
+        "where": "Home" if norm_key(parent) == norm_key(HOME) else (Path(parent).name or parent),
+    }
+
+
+def search_list(path):
+    """Names in one folder. Gives up if macOS holds the call, and never follows links."""
+    def snap(folder=path):
+        out = []
+        for entry in os.scandir(folder):
+            if entry.name.startswith("."):
+                continue
+            try:
+                is_dir = entry.is_dir(follow_symlinks=False)
+            except OSError:
+                is_dir = False
+            out.append((entry.name, entry.path, is_dir))
+        return out
+    return without_hanging(snap, 2)
+
+
+def note_blocked(blocked, seen, folder):
+    key = norm_key(folder)
+    if key in seen:
+        return
+    seen.add(key)
+    blocked.append({"name": Path(folder).name or str(folder), "path": str(folder)})
+
+
+def search_exact(query):
+    """A typed path, such as /Users/you/Downloads/bebas_kai, opened by its parent listing."""
+    text = str(query or "").strip().strip('"').strip("'")
+    if text.startswith("~"):
+        text = os.path.expanduser(text)
+    slashed = "/" in text or "\\" in text or (len(text) > 2 and text[1] == ":")
+    if not slashed:
+        return None
+    if not (text.startswith("/") or text.startswith("\\\\") or (len(text) > 2 and text[1] == ":")):
+        text = os.path.join(str(HOME), text)
+    text = os.path.normpath(text)
+    parent = os.path.dirname(text)
+    leaf = os.path.basename(text)
+    if not leaf or not parent:
+        return [], []
+    blocked, seen = [], set()
+    guard = guarded_folder(parent) or guarded_folder(text)
+    if guard is not None and not allowed_folder(guard):
+        note_blocked(blocked, seen, guard)
+        return [], blocked
+    if not (can_explore(parent) or can_explore(text)):
+        return [], blocked
+    entries = search_list(parent)
+    if entries is None:
+        if guard is not None:
+            note_blocked(blocked, seen, guard)
+        return [], blocked
+    want = leaf.casefold()
+    hits = []
+    for name, path, is_dir in entries:
+        if name.casefold() == want or want in name.casefold():
+            hits.append(search_hit(path, name, is_dir))
+    hits.sort(key=lambda item: (item["name"].casefold() != want, item["name"].casefold()))
+    return hits, blocked
+
+
+def search_walk(query, limit=50):
+    """Every disk, by name. Shallow folders come first, so Downloads is not behind a deep tree."""
+    q = str(query or "").strip().casefold()
+    hits, blocked, seen = [], [], set()
+    if len(q) < 2:
+        return hits, blocked
+    deadline = time.time() + 12
+    queue = deque(search_starts())
+    while queue and time.time() < deadline and len(hits) < limit:
+        current = queue.popleft()
+        guard = guarded_folder(current)
+        if guard is not None and not allowed_folder(guard):
+            note_blocked(blocked, seen, guard)
+            continue
+        entries = search_list(current)
+        if entries is None:
+            if guard is not None:
+                note_blocked(blocked, seen, guard)
+            continue
+        for name, path, is_dir in entries:
+            low = name.casefold()
+            if q in low and len(hits) < limit:
+                hits.append(search_hit(path, name, is_dir))
+            if not is_dir or len(hits) >= limit:
+                continue
+            if low in SEARCH_SKIP or is_library(name) or low.endswith(".app"):
+                continue
+            # ~/Library and AppData are the clean-up scan, and reading them raises dialogs.
+            parent = norm_key(Path(path).parent)
+            if parent == norm_key(HOME) and low in {"library", "appdata"}:
+                continue
+            child = guarded_folder(path)
+            if child is not None and not allowed_folder(child):
+                note_blocked(blocked, seen, child)
+                continue
+            queue.append(path)
+    hits.sort(key=lambda item: (
+        0 if item["name"].casefold() == q else 1 if item["name"].casefold().startswith(q) else 2,
+        not item["dir"],
+        item["name"].casefold(),
+    ))
+    return hits[:limit], blocked
+
+
+def search_system(query):
+    """Find a file or folder anywhere the computer will let Skurra look."""
+    text = str(query or "").strip()
+    if len(text) < 2:
+        return {"query": text, "items": [], "blocked": [], "partial": False}
+    exact, blocked = [], []
+    looked = search_exact(text)
+    if looked is not None:
+        exact, blocked = looked
+        if any(item["name"].casefold() == os.path.basename(text).strip('"').strip("'").casefold()
+               for item in exact):
+            return {"query": text, "items": exact[:50], "blocked": blocked, "partial": False}
+        if blocked:
+            return {"query": text, "items": exact[:50], "blocked": blocked, "partial": False}
+    leaf = text
+    if "/" in text or "\\" in text:
+        leaf = os.path.basename(os.path.normpath(text.strip('"').strip("'")))
+    more, more_blocked = search_walk(leaf or text)
+    seen = {norm_key(item["path"]) for item in exact}
+    items = list(exact)
+    for item in more:
+        if norm_key(item["path"]) in seen:
+            continue
+        seen.add(norm_key(item["path"]))
+        items.append(item)
+    have = {norm_key(item["path"]) for item in blocked}
+    for item in more_blocked:
+        if norm_key(item["path"]) not in have:
+            blocked.append(item)
+            have.add(norm_key(item["path"]))
+    return {"query": text, "items": items[:50], "blocked": blocked, "partial": len(items) >= 50}
 
 
 def focus_stub(focus, parent):
@@ -1162,19 +1411,25 @@ def explore(path, focus=""):
             is_dir = e.is_dir(follow_symlinks=False)
         except OSError:
             continue
+        size, files, whole, touched = 0, 0, False, 0
         try:
             if is_dir:
                 left = max(0.5, min(DISK_ITEM, ends - time.time()))
                 got = without_hanging(
                     lambda: folder_size(e.path, deadline=time.time() + left), left + 3)
-                if got is None:
-                    continue                 # guarded by macOS: leave it out
-                size, files, whole = got
+                # A slow or guarded folder used to vanish from the list, so a
+                # search for its name said it was not there.
+                if got is not None:
+                    size, files, whole = got
             else:
                 size, files, whole = e.stat(follow_symlinks=False).st_size, 1, True
-            touched = e.stat(follow_symlinks=False).st_mtime
+            try:
+                touched = e.stat(follow_symlinks=False).st_mtime
+            except OSError:
+                touched = 0
         except OSError:
-            continue
+            if not is_dir:
+                continue
         items.append({
             "name": e.name,
             "path": e.path,
@@ -1241,12 +1496,60 @@ def inside_home(path):
 
 # ---------------------------------------------------------------- safety
 
+def deletable(path):
+    """A folder the person searched for and may move to the Trash.
+
+    Compared as text. resolve() on Downloads is itself the Mac question, and
+    that question from the delete path is why a found folder could not be removed.
+    """
+    raw = norm_key(path)
+    if not raw or raw in (os.sep, "/", "\\"):
+        return False
+    home = norm_key(HOME)
+    if raw == home:
+        return False
+    if in_home_text(path):
+        parent = norm_key(Path(os.path.normpath(str(path))).parent)
+        name = Path(os.path.normpath(str(path))).name.casefold()
+        protected = {"desktop", "documents", "downloads", "pictures", "movies", "music", "videos"}
+        if parent == home and name in protected:
+            return False
+        for folder in APPDATA_DIRS:
+            base = norm_key(folder)
+            if raw == base or raw.startswith(base + os.sep):
+                return False
+        library = home + os.sep + norm_key("Library")
+        if raw == library or raw.startswith(library + os.sep):
+            return False
+        return True
+    if WINDOWS:
+        if len(raw) < 4 or raw[1] != ":":
+            return False
+        if raw.rstrip("\\/")[1:] in (":",):
+            return False
+        rest = raw[2:].lstrip("\\/")
+        if not rest:
+            return False
+        top = rest.split("\\")[0].split("/")[0].casefold()
+        if top in {"windows", "program files", "program files (x86)", "programdata",
+                   "$recycle.bin", "system volume information", "recovery"}:
+            return False
+        return True
+    low = raw.lower()
+    if low.startswith("/volumes/"):
+        parts = [p for p in low.split("/") if p]
+        return len(parts) >= 3
+    return False
+
+
 def allowed(path):
     """Returns (yes_or_no, reason). A path has to clear every gate."""
     if is_ours(path):
         return False, "Skurra is running from here"
     if known_program(path):
         return True, ""                      # a Windows program, removed by its uninstaller
+    if deletable(path):
+        return True, ""
     try:
         p = Path(path).resolve(strict=True)
     except (OSError, RuntimeError):
@@ -2271,6 +2574,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply(check_update())
         elif self.path == "/api/roots":
             self.reply([{"name": "Home" if r == HOME else r.name, "path": str(r)} for r in disk_roots()])
+        elif self.path.startswith("/api/search"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self.reply(search_system(q.get("q", [""])[0]))
         elif self.path.startswith("/api/explore"):
             q = urllib.parse.urlparse(self.path).query
             parsed = urllib.parse.parse_qs(q)
@@ -2306,7 +2612,7 @@ class Handler(SimpleHTTPRequestHandler):
 
         if self.path == "/api/permission-ask":
             want = str(body.get("path", "")) if isinstance(body, dict) else ""
-            if not (want == str(HOME) or inside_home(want)):
+            if not in_home_text(want):
                 self.reply({"ok": False})
                 return
             self.reply(ask_permission(want))

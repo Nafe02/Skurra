@@ -1,5 +1,5 @@
 {
-  "version": "1.22.15",
+  "version": "1.22.16",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "A sharper app icon on Mac and Windows."
+  "notes": "Search looks through the whole computer, so a folder can be found and removed."
 }

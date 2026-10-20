@@ -339,6 +339,9 @@ h3.important { color: #b5643d; }
 }
 #dfind::placeholder { color: #66706c; font-weight: 500; }
 #dfind::-webkit-search-cancel-button { display: none; }
+#dhits, #sysfind { margin: 0 0 14px; }
+.hitwhere { display: block; margin-top: 2px; color: var(--dim); font-style: normal; font-size: 12px; font-weight: 500; word-break: break-all; }
+#dhits .go, #sysfind .go { margin-left: 8px; padding: 6px 12px; border-radius: 999px; font: inherit; font-weight: 700; cursor: pointer; }
 .finder:focus-within { border-color: var(--patina); }
 .fico { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--dim);
         stroke-width: 2; stroke-linecap: round; }
@@ -707,6 +710,7 @@ body.welcoming .update.on {
   <p class="warn" id="offscreen"></p>
 
   <div id="out" hidden>
+    <div id="sysfind" hidden></div>
     <details class="box" id="box-cache" open>
       <summary>Caches <span class="meta" id="meta-cache"></span></summary>
       <div class="inner">
@@ -746,9 +750,17 @@ body.welcoming .update.on {
   </div>
 
   <div class="disk" id="diskview" hidden>
+    <div class="finder" id="dfinder">
+      <svg class="fico" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+      </svg>
+      <input id="dfind" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search the whole computer">
+    </div>
+    <div id="dhits" hidden></div>
     <div class="diskintro" id="diskintro">
       <h2>Pick a folder</h2>
-      <p class="sub">Nothing is listed until you choose one. Downloads is a good place to start.</p>
+      <p class="sub">Or search above. Skurra looks through this computer, not just the open folder.</p>
     </div>
     <div class="roots" id="roots"></div>
     <div class="diskbody" id="diskbody" hidden>
@@ -761,13 +773,6 @@ body.welcoming .update.on {
         <h4 id="diskname">This folder</h4>
         <p class="disksub" id="disksub"></p>
         <div class="keys" id="keys"></div>
-      </div>
-      <div class="finder" id="dfinder">
-        <svg class="fico" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
-        </svg>
-        <input id="dfind" type="search" autocomplete="off" spellcheck="false"
-               placeholder="Filter this folder by name">
       </div>
       <div id="flist"></div>
     </div>
@@ -1680,6 +1685,9 @@ async function openDir(path, focus) {
   if (spotlight && normPath(parentPath(spotlight)) !== normPath(path)) spotlight = "";
   const ticket = ++dirTicket;
   diskQuery = "";
+  searchTicket++;
+  searchRows = [];
+  renderHits($("#dhits"), null, "");
   const box = $("#dfind");
   if (box) box.value = "";
   busy(true, "Opening this file.", "Measuring");
@@ -1705,9 +1713,19 @@ async function openDir(path, focus) {
   }
 }
 
+function diskPicked() {
+  const all = [], seen = new Set();
+  for (const i of [...dirRows, ...searchRows]) {
+    if (!i || !dpick.has(i.path) || seen.has(i.path)) continue;
+    seen.add(i.path);
+    all.push(i);
+  }
+  return all;
+}
+
 function refreshDisk() {
   updateSun();
-  const picked = dirRows.filter(i => dpick.has(i.path));
+  const picked = diskPicked();
   const mb = picked.reduce((a, i) => a + i.mb, 0);
   $("#trash").disabled = !picked.length;
   $("#trash").innerHTML = (WIN ? "Move to Recycle Bin" : "Move to Trash") +
@@ -1770,7 +1788,7 @@ for (const b of document.querySelectorAll(".view")) {
 
 // ---------------------------------------------------------------- searching
 
-$("#find").oninput = () => { query = $("#find").value; cursor = -1; draw(); };
+$("#find").oninput = () => { query = $("#find").value; cursor = -1; draw(); scheduleWide(query); };
 $("#find").onkeydown = e => {
   const list = visible();
   if (e.key === "Escape") { clearFind(); return; }
@@ -1807,18 +1825,121 @@ $("#fclear").onclick = clearFind;
 $("#dfind").oninput = () => {
   diskQuery = $("#dfind").value;
   if (here) drawDisk(here);
+  scheduleWide(diskQuery);
 };
 $("#dfind").onkeydown = e => {
   if (e.key === "Escape") {
     diskQuery = "";
     $("#dfind").value = "";
+    scheduleWide("");
     if (here) drawDisk(here);
   }
 };
 
+let searchRows = [];
+let searchTicket = 0;
+let searchTimer = 0;
+
+function renderHits(host, data, q) {
+  if (!host) return;
+  const text = (q || "").trim();
+  if (!data || text.length < 2) {
+    host.hidden = true;
+    host.innerHTML = "";
+    return;
+  }
+  host.hidden = false;
+  const items = data.items || [];
+  const blocked = data.blocked || [];
+  let html = `<p class="bineye">ON THIS COMPUTER</p>`;
+  if (!items.length && !blocked.length) {
+    html += `<div class="empty2">Nothing on this computer is called "${esc(text)}".</div>`;
+  }
+  html += items.map(i => {
+    const c = i.dir ? "#3ee6a2" : "#8d98a0";
+    const go = i.dir ? esc(i.path) : "";
+    return `<div class="frow ${i.dir ? "isdir" : ""}">
+      <input type="checkbox" data-path="${esc(i.path)}" ${dpick.has(i.path) ? "checked" : ""}>
+      <button class="locate" type="button" data-loc="${esc(i.path)}">Open location</button>
+      <span class="nm" data-go="${go}"><i class="dot2" style="background:${c}"></i>
+        <b>${mark(i.name, text)}</b><em class="hitwhere">${esc(i.path)}</em></span>
+    </div>`;
+  }).join("");
+  html += blocked.map(b =>
+    `<div class="empty2">${esc(b.name)} is not searched yet.
+      <button type="button" class="go allow" data-allow="${esc(b.path)}">Allow ${esc(b.name)}</button></div>`
+  ).join("");
+  if (data.partial) html += `<div class="empty2">Showing the first matches.</div>`;
+  host.innerHTML = html;
+  for (const nm of host.querySelectorAll(".nm")) {
+    const go = nm.dataset.go;
+    const loc = nm.parentElement.querySelector(".locate");
+    nm.onclick = () => {
+      const target = loc ? loc.dataset.loc : go;
+      if (!target) return;
+      spotlight = target;
+      if (go) openDir(go);
+      else openDir(parentPath(target), target);
+    };
+  }
+  for (const b of host.querySelectorAll(".locate")) b.onclick = () => openLocation(b.dataset.loc);
+  for (const box of host.querySelectorAll("input")) {
+    box.onchange = () => {
+      box.checked ? dpick.add(box.dataset.path) : dpick.delete(box.dataset.path);
+      if (view === "disk") refreshDisk();
+    };
+  }
+  for (const b of host.querySelectorAll(".allow")) {
+    b.onclick = () => allowSearchFolder(b.dataset.allow);
+  }
+}
+
+async function allowSearchFolder(path) {
+  busy(true, "Asking for this folder.", "Waiting");
+  try {
+    await fetch("/api/permission-ask", { method: "POST", body: JSON.stringify({ path }) });
+  } catch (e) { /* the search can be tried again */ }
+  busy(false);
+  const q = (view === "disk" ? diskQuery : query).trim();
+  if (q.length >= 2) runWideSearch(q);
+}
+
+function scheduleWide(q) {
+  clearTimeout(searchTimer);
+  if ((q || "").trim().length < 2) {
+    searchTicket++;
+    searchRows = [];
+    renderHits($("#dhits"), null, "");
+    renderHits($("#sysfind"), null, "");
+    if (view === "disk") refreshDisk();
+    return;
+  }
+  searchTimer = setTimeout(() => runWideSearch(q.trim()), 350);
+}
+
+async function runWideSearch(q) {
+  const ticket = ++searchTicket;
+  const host = view === "disk" ? $("#dhits") : $("#sysfind");
+  if (host) {
+    host.hidden = false;
+    host.innerHTML = `<div class="empty2">Searching this computer…</div>`;
+  }
+  try {
+    const data = await (await fetch("/api/search?q=" + encodeURIComponent(q))).json();
+    if (ticket !== searchTicket) return;
+    searchRows = data.items || [];
+    renderHits(view === "disk" ? $("#dhits") : $("#sysfind"), data, q);
+    if (view === "disk") refreshDisk();
+  } catch (e) {
+    if (ticket !== searchTicket) return;
+    if (host) host.innerHTML = `<div class="empty2">The search did not finish.</div>`;
+  }
+}
+
 function clearFind() {
   query = "";
   $("#find").value = "";
+  scheduleWide("");
   draw();
   $("#find").focus();
 }
@@ -1899,18 +2020,25 @@ async function runJob(url, body, label) {
 }
 
 async function trashFiles() {
-  const items = dirRows.filter(i => dpick.has(i.path));
-  const names = items.map(i => `${i.name}  (${size(i.mb)})`).join("\n");
+  const items = diskPicked();
+  const names = items.map(i => `${i.name}${i.mb ? "  (" + size(i.mb) + ")" : ""}`).join("\n");
   const where = WIN ? "Recycle Bin" : "Trash";
   if (!await ask(`Move these to the ${where}?`, `${names}\n\nYou can put them back until you empty it.`, "Move")) return;
   busy(true, `Moving to the ${where}.`, "Moving");
   try {
     const res = await runJob("/api/trash", items.map(i => ({ ...i, kind: "file" })), true);
     dpick.clear();
+    searchRows = [];
     await celebrate(freedItems(items, res), `Moved to the ${where}`);
-    const d = await (await fetch("/api/explore?path=" + encodeURIComponent(here.path))).json();
-    await finish(); busy(false);
-    drawDisk(d);
+    if (here && here.path) {
+      const d = await (await fetch("/api/explore?path=" + encodeURIComponent(here.path))).json();
+      await finish(); busy(false);
+      drawDisk(d);
+    } else {
+      await finish(); busy(false);
+    }
+    const again = diskQuery.trim();
+    if (again.length >= 2) runWideSearch(again);
     report(res, `Moved to the ${where}:`);
     loadBin();
   } catch (e) {
