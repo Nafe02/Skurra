@@ -1534,7 +1534,7 @@ function drawDisk(data) {
       <span class="sz">${i.approx ? "<i>over</i> " : ""}${size(i.mb)}</span>
       <span class="ag">${age}</span>
     </div>`;
-  }).join("") : `<div class="empty2">${q ? `Nothing in this folder is called "${esc(diskQuery.trim())}".` : "Nothing in here."}</div>`;
+  }).join("") : `<div class="empty2">${q ? "Looking through this computer…" : "Nothing in here."}</div>`;
 
   for (const nm of $("#flist").querySelectorAll(".nm[data-go]")) {
     if (nm.dataset.go) nm.onclick = () => openDir(nm.dataset.go);
@@ -1840,6 +1840,12 @@ let searchRows = [];
 let searchTicket = 0;
 let searchTimer = 0;
 
+function wideHost() {
+  if (view === "disk" && here && !$("#diskbody").hidden) return $("#flist");
+  if (view === "disk") return $("#dhits");
+  return $("#sysfind");
+}
+
 function renderHits(host, data, q) {
   if (!host) return;
   const text = (q || "").trim();
@@ -1865,8 +1871,11 @@ function renderHits(host, data, q) {
         <b>${mark(i.name, text)}</b><em class="hitwhere">${esc(i.path)}</em></span>
     </div>`;
   }).join("");
+  if (!items.length && blocked.length) {
+    html += `<div class="empty2">Not in the folders Skurra could open. Allow a folder to look inside it.</div>`;
+  }
   html += blocked.map(b =>
-    `<div class="empty2">${esc(b.name)} is not searched yet.
+    `<div class="empty2">${esc(b.name)} was not opened.
       <button type="button" class="go allow" data-allow="${esc(b.path)}">Allow ${esc(b.name)}</button></div>`
   ).join("");
   if (data.partial) html += `<div class="empty2">Showing the first matches.</div>`;
@@ -1919,7 +1928,8 @@ function scheduleWide(q) {
 
 async function runWideSearch(q) {
   const ticket = ++searchTicket;
-  const host = view === "disk" ? $("#dhits") : $("#sysfind");
+  const host = wideHost();
+  if (view === "disk") renderHits($("#dhits"), null, "");
   if (host) {
     host.hidden = false;
     host.innerHTML = `<div class="empty2">Searching this computer…</div>`;
@@ -1928,7 +1938,7 @@ async function runWideSearch(q) {
     const data = await (await fetch("/api/search?q=" + encodeURIComponent(q))).json();
     if (ticket !== searchTicket) return;
     searchRows = data.items || [];
-    renderHits(view === "disk" ? $("#dhits") : $("#sysfind"), data, q);
+    renderHits(wideHost(), data, q);
     if (view === "disk") refreshDisk();
   } catch (e) {
     if (ticket !== searchTicket) return;

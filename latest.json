@@ -1,5 +1,5 @@
 {
-  "version": "1.22.16",
+  "version": "1.22.17",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Search looks through the whole computer, so a folder can be found and removed."
+  "notes": "Search can open Downloads and show the folder you typed."
 }

@@ -33,7 +33,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.16"
+VERSION = "1.22.17"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1180,20 +1180,34 @@ def search_hit(path, name, is_dir):
     }
 
 
-def search_list(path):
-    """Names in one folder. Gives up if macOS holds the call, and never follows links."""
+GUARDED_NAMES = {"desktop", "documents", "downloads", "pictures", "movies", "music", "videos"}
+
+
+def search_list(path, seconds=2):
+    """Names in one folder. Gives up if macOS holds the call, and never follows links.
+
+    Asking is_dir() on Downloads while listing Home is enough to raise the Mac
+    question and throw the whole listing away. Those names are folders. Do not
+    stat them from their parent.
+    """
     def snap(folder=path):
         out = []
+        parent_is_home = norm_key(folder) == norm_key(HOME)
         for entry in os.scandir(folder):
-            if entry.name.startswith("."):
+            name = entry.name
+            if name.startswith("."):
                 continue
+            if parent_is_home and name.casefold() in GUARDED_NAMES:
+                out.append((name, entry.path, True))
+                continue
+            is_dir = False
             try:
                 is_dir = entry.is_dir(follow_symlinks=False)
             except OSError:
-                is_dir = False
-            out.append((entry.name, entry.path, is_dir))
+                is_dir = "." not in name
+            out.append((name, entry.path, is_dir))
         return out
-    return without_hanging(snap, 2)
+    return without_hanging(snap, seconds)
 
 
 def note_blocked(blocked, seen, folder):
@@ -1226,7 +1240,7 @@ def search_exact(query):
         return [], blocked
     if not (can_explore(parent) or can_explore(text)):
         return [], blocked
-    entries = search_list(parent)
+    entries = search_list(parent, 8 if guard is not None else 3)
     if entries is None:
         if guard is not None:
             note_blocked(blocked, seen, guard)
@@ -1246,15 +1260,29 @@ def search_walk(query, limit=50):
     hits, blocked, seen = [], [], set()
     if len(q) < 2:
         return hits, blocked
+    # Say which of the protected folders were not opened, even if listing Home
+    # itself gets stuck. Otherwise a folder in Downloads looks like it is missing.
+    if not WINDOWS:
+        for name in ("Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music"):
+            folder = HOME / name
+            if not allowed_folder(folder):
+                note_blocked(blocked, seen, folder)
     deadline = time.time() + 12
-    queue = deque(search_starts())
+    queue = deque()
+    for start in search_starts():
+        guard = guarded_folder(start)
+        if guard is not None and not allowed_folder(guard):
+            note_blocked(blocked, seen, guard)
+            continue
+        queue.append(start)
     while queue and time.time() < deadline and len(hits) < limit:
         current = queue.popleft()
         guard = guarded_folder(current)
         if guard is not None and not allowed_folder(guard):
             note_blocked(blocked, seen, guard)
             continue
-        entries = search_list(current)
+        seconds = 8 if guard is not None else 3
+        entries = search_list(current, seconds)
         if entries is None:
             if guard is not None:
                 note_blocked(blocked, seen, guard)
