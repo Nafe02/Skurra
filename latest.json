@@ -1,5 +1,5 @@
 {
-  "version": "1.22.17",
+  "version": "1.22.18",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Search can open Downloads and show the folder you typed."
+  "notes": "Before a scan, Skurra says your files stay on this computer."
 }
