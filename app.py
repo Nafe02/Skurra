@@ -8,6 +8,7 @@ otherwise falls back to your browser. Force the browser with SKURRA_BROWSER=1.
 """
 
 import datetime
+import hashlib
 import json
 import os
 from collections import deque
@@ -33,7 +34,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.18"
+VERSION = "1.22.19"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -990,7 +991,12 @@ def scan():
     progress["total"] = 0
     progress["done"] = 0
     progress["where"] = ""
-    found.sort(key=lambda r: r["mb"], reverse=True)
+    # Least-used apps first. Size still orders caches and leftovers.
+    found.sort(key=lambda r: (
+        0 if r["kind"] == "app" else 1,
+        -(r["days"] if r["kind"] == "app" else 0),
+        -r["mb"],
+    ))
     return {"items": found, "skipped": skipped}
 
 
@@ -1401,6 +1407,67 @@ def folder_size(path, deadline=None):
     return total, count, whole
 
 
+def disk_meter(path):
+    """How full the disk holding this folder is. Bytes only, no file names."""
+    try:
+        usage = shutil.disk_usage(path)
+    except OSError:
+        return {}
+    return {
+        "totalMb": round(usage.total / 1024 / 1024, 1),
+        "usedMb": round(usage.used / 1024 / 1024, 1),
+        "freeMb": round(usage.free / 1024 / 1024, 1),
+    }
+
+
+THUMB_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+THUMB_MIME = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+    ".gif": "image/gif", ".webp": "image/webp", ".bmp": "image/bmp",
+}
+
+
+def thumb_bytes(path):
+    """A small picture for a file the disk view is already allowed to list.
+
+    Large photos are reduced with sips on a Mac. Anything Skurra cannot
+    shrink, and anything over a few megabytes, is left as an icon.
+    """
+    ext = Path(path).suffix.lower()
+    if ext not in THUMB_EXT or not can_explore(path):
+        return None
+    try:
+        if not os.path.isfile(path):
+            return None
+        size = os.path.getsize(path)
+        mtime = int(os.path.getmtime(path))
+    except OSError:
+        return None
+    if size <= 0 or size > 20 * 1024 * 1024:
+        return None
+    if not WINDOWS and size > 350_000:
+        folder = DATA / "thumbs"
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            key = hashlib.sha1(f"{path}|{mtime}|{size}".encode()).hexdigest()[:24]
+            dest = folder / f"{key}.jpg"
+            if dest.exists() and dest.stat().st_size > 0:
+                return dest.read_bytes(), "image/jpeg"
+            subprocess.run(
+                ["sips", "-s", "format", "jpeg", "-Z", "320", path, "--out", str(dest)],
+                capture_output=True, timeout=8)
+            if dest.exists() and dest.stat().st_size > 0:
+                return dest.read_bytes(), "image/jpeg"
+        except (OSError, subprocess.SubprocessError):
+            pass
+    if size > 3 * 1024 * 1024:
+        return None
+    try:
+        return Path(path).read_bytes(), THUMB_MIME[ext]
+    except OSError:
+        return None
+
+
 def list_folder(p):
     return [e for e in os.scandir(p)
             if not e.name.startswith(".")
@@ -1470,7 +1537,8 @@ def explore(path, focus=""):
         })
     explore_progress["done"] = explore_progress["total"]
 
-    items.sort(key=lambda r: r["mb"], reverse=True)
+    # Forgotten first. A folder touched today stays lower than one idle for a year.
+    items.sort(key=lambda r: (-(r["days"] or 0), -r["mb"], r["name"].casefold()))
     items = attach_focus(items, p, focus)
     totals = {}
     for it in items:
@@ -1489,6 +1557,7 @@ def explore(path, focus=""):
 
     return {"path": str(p), "parent": parent, "crumbs": crumbs,
             "items": items, "totals": totals,
+            "disk": disk_meter(str(p)),
             "mb": round(sum(i["mb"] for i in items), 1)}
 
 
@@ -2605,6 +2674,22 @@ class Handler(SimpleHTTPRequestHandler):
         elif self.path.startswith("/api/search"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self.reply(search_system(q.get("q", [""])[0]))
+        elif self.path.startswith("/api/thumb"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            got = thumb_bytes(q.get("path", [""])[0])
+            if not got:
+                self.send_error(404)
+                return
+            body, ctype = got
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "private, max-age=86400")
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
         elif self.path.startswith("/api/explore"):
             q = urllib.parse.urlparse(self.path).query
             parsed = urllib.parse.parse_qs(q)

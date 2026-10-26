@@ -1,5 +1,5 @@
 {
-  "version": "1.22.18",
+  "version": "1.22.19",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Before a scan, Skurra says your files stay on this computer."
+  "notes": "Least-used apps are listed first, and Disk space shows this folder against the whole disk."
 }
