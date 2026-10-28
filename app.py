@@ -34,7 +34,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.19"
+VERSION = "1.22.20"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -108,19 +108,16 @@ FOLDERS = APPDATA_DIRS + [CACHES_DIR]
 def allowed_folder(path):
     """Did the person allow this one?
 
-    On a Mac, looking inside Desktop or Downloads is what makes the system
-    question appear. Unknown is not a yes: touching it would put that
-    question up and hold the app until they answer.
+    Unknown is not a yes. On a Mac, looking inside Desktop or Downloads is
+    what makes the system question appear, and an older grant does not
+    survive an update. On Windows the yes is Skurra's own, and it stays.
     """
-    if WINDOWS:
-        return True
     state = load_perms()
     key = str(path)
-    # Each update is a different app to macOS, so a grant remembered from
-    # an older build is not permission. Reading Downloads from the scan
-    # thread is what leaves the system question up and the ring on Starting.
     if state["folders"].get(key) != "granted":
         return False
+    if WINDOWS:
+        return True
     return state["grant_versions"].get(key) == VERSION
 
 
@@ -773,7 +770,7 @@ def scan():
     # On a Mac, exists() itself raises the system question and the scan
     # waits there at 0%. Ask permission first, and do not touch the folder
     # until the answer is already yes.
-    downloads = HOME / "Downloads"
+    downloads = next((p for p in protected_folders() if p.name.lower() == "downloads"), HOME / "Downloads")
     if allowed_folder(downloads):
         # If macOS still wants an answer, this returns and the scan carries
         # on. Waiting here is what froze the ring on "Starting".
@@ -1062,18 +1059,30 @@ def in_home_text(path):
 
 
 def guarded_folder(path):
-    """Desktop, Downloads, and the other folders macOS asks about. None on Windows."""
-    if WINDOWS:
-        return None
+    """Desktop, Downloads, and the other folders that stay closed until allowed."""
     raw = norm_key(path)
-    home = norm_key(HOME)
-    for name in ("Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music"):
-        root = norm_key(HOME / name)
-        if raw == root or raw.startswith(root + os.sep):
-            return HOME / name
-    if raw == home:
-        return None
+    for root in protected_folders():
+        base = norm_key(root)
+        if base and (raw == base or raw.startswith(base + os.sep)):
+            return root
     return None
+
+
+_protected_cache = None
+
+
+def protected_folders():
+    """The folders Skurra leaves closed until the person allows them."""
+    global _protected_cache
+    if _protected_cache is not None:
+        return _protected_cache
+    names = ["Desktop", "Documents", "Downloads", "Pictures", "Music"]
+    names.append("Videos" if WINDOWS else "Movies")
+    if WINDOWS:
+        _protected_cache = [windows_known(n) for n in names]
+    else:
+        _protected_cache = [HOME / n for n in names]
+    return _protected_cache
 
 
 def can_explore(path):
@@ -1268,11 +1277,9 @@ def search_walk(query, limit=50):
         return hits, blocked
     # Say which of the protected folders were not opened, even if listing Home
     # itself gets stuck. Otherwise a folder in Downloads looks like it is missing.
-    if not WINDOWS:
-        for name in ("Desktop", "Documents", "Downloads", "Pictures", "Movies", "Music"):
-            folder = HOME / name
-            if not allowed_folder(folder):
-                note_blocked(blocked, seen, folder)
+    for folder in protected_folders():
+        if not allowed_folder(folder):
+            note_blocked(blocked, seen, folder)
     deadline = time.time() + 12
     queue = deque()
     for start in search_starts():
@@ -1480,6 +1487,12 @@ def list_folder(p):
 def explore(path, focus=""):
     """Everything one level inside a folder, each with its true size."""
     p = Path(path)
+    guard = guarded_folder(str(p))
+    if guard is not None and not allowed_folder(guard):
+        return {"error": "allow", "allow": str(guard), "name": guard.name,
+                "path": str(p), "parent": str(p.parent), "crumbs": [
+                    {"name": guard.name, "path": str(guard)}],
+                "items": [], "totals": {}, "mb": 0}
     # Even listing a folder can stop dead behind a macOS permission dialog,
     # so this gets the same deadline as measuring does.
     entries = without_hanging(lambda: list_folder(p), 8)
