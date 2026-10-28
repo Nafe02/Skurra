@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Skurra — storage cleaner for Mac and Windows</title>
-<meta name="description" content="Skurra scans your Mac or PC, clears caches with the duster, shows a folder only when you open it, and opens a file’s real location in Finder or File Explorer.">
+<meta name="description" content="Skurra scans your Mac or Windows PC, clears caches with the brush, shows a folder only when you open it, and opens a file’s real location in Finder or File Explorer.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='11' fill='none' stroke='%233ee6a2' stroke-width='6' stroke-dasharray='52 18' transform='rotate(-90 16 16)'/></svg>">
 <style>
 :root {
@@ -27,12 +27,21 @@ nav {
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 750; letter-spacing: -0.03em; }
 .brand svg { width: 28px; height: 28px; }
+.brand .arc { transform-origin: 16px 16px; transform: rotate(-90deg); }
+.brand:hover .arc { animation: ringnudge .8s ease; }
+@keyframes ringnudge {
+  0% { transform: rotate(-90deg); }
+  42% { transform: rotate(48deg); }
+  100% { transform: rotate(-90deg); }
+}
 .links { display: flex; align-items: center; gap: 22px; font-size: 14px; }
-.links a { text-decoration: none; color: var(--dim); }
+.links a { text-decoration: none; color: var(--dim); transition: color .18s ease; }
 .links a:hover { color: var(--ink); }
 .links a.pill {
   background: var(--green); color: var(--on); font-weight: 750; padding: 8px 16px; border-radius: 999px;
+  transition: background .18s ease, color .18s ease;
 }
+.links a.pill:hover { background: #b8ffe4; color: #04150e; }
 @media (max-width: 720px) { .links a:not(.pill) { display: none; } }
 
 .hero {
@@ -48,9 +57,12 @@ h1 { margin: 0 0 16px; font-size: clamp(44px, 6vw, 68px); line-height: .98; lett
 a.btn {
   display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
   background: var(--green); color: var(--on); font-weight: 750; letter-spacing: -0.02em;
-  padding: 14px 22px; border-radius: 999px; border: 0;
+  padding: 14px 22px; border-radius: 999px; border: 1px solid transparent;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
 }
+a.btn:hover { background: #b8ffe4; }
 a.btn.alt { background: transparent; color: var(--ink); border: 1px solid rgba(62,230,162,.55); }
+a.btn.alt:hover { background: var(--green); color: var(--on); border-color: var(--green); }
 a.btn svg { width: 16px; height: 16px; fill: currentColor; }
 .fine { margin: 14px 0 0; color: var(--dim); font-size: 13px; }
 .promises { list-style: none; margin: 0 0 22px; padding: 0; max-width: 460px; }
@@ -139,6 +151,7 @@ footer a { color: var(--dim); }
 .reveal.d3 { transition-delay: .3s; }
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }
+  .brand:hover .arc { animation: none; }
   html { scroll-behavior: auto; }
 }
 </style>
@@ -146,7 +159,7 @@ footer a { color: var(--dim); }
 <body>
 <nav>
   <a class="brand" href="#top" aria-label="Skurra home">
-    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="#1f8f5c" stroke-width="4"/><circle cx="16" cy="16" r="11" fill="none" stroke="#3ee6a2" stroke-width="4" stroke-dasharray="48 22" transform="rotate(-90 16 16)"/></svg>
+    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="#1f8f5c" stroke-width="4"/><circle class="arc" cx="16" cy="16" r="11" fill="none" stroke="#3ee6a2" stroke-width="4" stroke-dasharray="48 22"/></svg>
     Skurra
   </a>
   <div class="links">
@@ -163,7 +176,7 @@ footer a { color: var(--dim); }
   <div id="download">
     <p class="eyebrow">SKURRA</p>
     <h1>Scan. Clear. Stay in control.</h1>
-    <p class="lead">Skurra finds what you can clear on a Mac or a PC. Caches go with the duster. Everything else waits until you decide.</p>
+    <p class="lead">Skurra finds what you can clear on a Mac or Windows. Caches go with the duster. Everything else waits until you decide.</p>
     <ul class="promises">
       <li>Your files stay on this computer.</li>
       <li>Nothing is thrown away until you tick it and say yes.</li>
