@@ -34,7 +34,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.21"
+VERSION = "1.22.22"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -2165,13 +2165,23 @@ RESULT_FILE = DATA / "update-result.json"
 
 
 def last_update_result():
-    """How the previous swap went, read once and then forgotten."""
+    """How the previous swap went, read once and then forgotten.
+
+    The helper can decide too early, while the new copy is still starting.
+    If this running copy is the version that swap was aiming for, the update
+    finished. Saying it failed on top of a working new version is the bug.
+    """
     try:
         out = json.loads(RESULT_FILE.read_text())
-        RESULT_FILE.unlink()
-        return out
     except Exception:
         return None
+    try:
+        RESULT_FILE.unlink()
+    except OSError:
+        pass
+    if isinstance(out, dict) and out.get("ok") is False and str(out.get("version") or "") == VERSION:
+        return {"ok": True, "version": VERSION, "error": ""}
+    return out
 
 
 def ps_quote(text):
@@ -2456,7 +2466,8 @@ target={sh_quote(str(target))}
 beside={sh_quote(str(beside))}
 work={sh_quote(str(work))}
 result={sh_quote(result)}
-lsreg=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+started={sh_quote(str(STARTED_FILE))}
+want={sh_quote('"version": "' + str(want) + '"')}
 for i in $(seq 1 40); do kill -0 {os.getpid()} 2>/dev/null || break; sleep 0.1; done
 mkdir -p "$(dirname "$result")"
 ok=no
@@ -2470,21 +2481,17 @@ else
 fi
 back=no
 if [ "$ok" = yes ]; then
-  # Open the new copy at once. Registering it with Launch Services first
-  # used to stall the relaunch for half a minute.
-  "$target/Contents/MacOS/Skurra" >/dev/null 2>&1 &
-  for i in $(seq 1 25); do
-    pgrep -f "$target/Contents/MacOS/" >/dev/null 2>&1 && back=yes && break
-    sleep 0.12
+  rm -f "$started"
+  open -n "$target"
+  # The new copy writes started.json once it is really running. A short
+  # process check used to miss that and report a finished update as a failure.
+  for i in $(seq 1 40); do
+    if [ -f "$started" ] && grep -F "$want" "$started" >/dev/null 2>&1; then
+      back=yes
+      break
+    fi
+    sleep 0.5
   done
-  if [ "$back" = no ]; then
-    open -n "$target" 2>/dev/null
-    for i in $(seq 1 15); do
-      pgrep -f "$target/Contents/MacOS/" >/dev/null 2>&1 && back=yes && break
-      sleep 0.12
-    done
-  fi
-  "$lsreg" -f "$target" >/dev/null 2>&1 &
 fi
 if [ "$ok" = yes ] && [ "$back" = yes ]; then
   printf '%s' {sh_quote(note_json(True, ""))} > "$result"
