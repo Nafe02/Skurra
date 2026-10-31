@@ -1,5 +1,5 @@
 {
   "version": "1.22.25",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Scan works in Disk space, History keeps every entry, and Update now appears only after the Mac and Windows files are really there."
+  "notes": "Opening an update no longer stalls, and if it cannot open, Skurra says so in plain words."
 }

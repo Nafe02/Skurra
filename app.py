@@ -35,7 +35,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.25"
+VERSION = "1.22.26"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -2332,6 +2332,46 @@ def sweep_leftovers():
                 pass
 
 
+def attach_update_dmg(dmg, mount):
+    """Open the downloaded disk image without hanging.
+
+    From the app, hdiutil has no terminal to talk to. The quiet attach used
+    to sit there until Python killed it, and the window then printed the
+    whole command. Drop the quarantine flag, do not wait on a closed input,
+    and if it stalls, let go and try again.
+    """
+    try:
+        subprocess.run(["xattr", "-d", "com.apple.quarantine", str(dmg)],
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    last = "the Mac could not open the disk image"
+    for _attempt in range(1, 4):
+        subprocess.run(["hdiutil", "detach", str(mount), "-force"],
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=20)
+        try:
+            subprocess.run(
+                ["hdiutil", "attach", str(dmg), "-mountpoint", str(mount),
+                 "-nobrowse", "-readonly", "-noverify", "-noautoopen"],
+                check=True, timeout=40,
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL)
+            if (mount / "Skurra.app").exists():
+                return
+            last = "the disk image did not contain Skurra"
+        except subprocess.TimeoutExpired:
+            last = "opening the disk image took too long"
+        except subprocess.CalledProcessError:
+            last = "the disk image would not open"
+        subprocess.run(["hdiutil", "detach", str(mount), "-force"],
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=20)
+        time.sleep(1)
+    raise OSError("The update downloaded, but " + last + ". Press Try again.")
+
+
 def install_update():
     """Download the new Skurra, then hand over to a script that swaps it in.
 
@@ -2486,8 +2526,7 @@ Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
             installing.update(stage="installing", pct=100)
             mount = work / "mnt"
             mount.mkdir()
-            subprocess.run(["hdiutil", "attach", str(dmg), "-mountpoint", str(mount),
-                            "-nobrowse", "-quiet"], check=True, timeout=120)
+            attach_update_dmg(dmg, mount)
             # One copy, straight to the spot beside the live app. A second
             # copy was a full extra wait before the window could come back.
             beside = Path(str(target) + ".new")
@@ -2562,8 +2601,13 @@ rm -rf "$work" "$0"
 
         installing.update(stage="restarting")
         threading.Timer(0.25, lambda: os._exit(0)).start()
+    except subprocess.TimeoutExpired:
+        installing.update(stage="failed", error="The update downloaded, but opening it took too long. Press Try again.")
     except Exception as e:
-        installing.update(stage="failed", error=str(e))
+        text = str(e)
+        if "hdiutil" in text or text.startswith("Command ["):
+            text = "The update downloaded, but the Mac could not open it. Press Try again."
+        installing.update(stage="failed", error=text)
 
 
 # ---------------------------------------------------------------- server
