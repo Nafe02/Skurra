@@ -99,7 +99,9 @@ jobs:
             dist/Skurra-Windows.zip
 
   mac:
-    runs-on: macos-14
+    # macos-14 is in a retirement brownout and the job is cancelled before it
+    # starts, which left Update now pointing at a file that was never published.
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
