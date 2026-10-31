@@ -1,5 +1,5 @@
 {
-  "version": "1.22.26",
+  "version": "1.22.27",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
   "notes": "Opening an update no longer stalls, and if it cannot open, Skurra says so in plain words."
 }
