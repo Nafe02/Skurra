@@ -34,7 +34,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.22"
+VERSION = "1.22.23"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -1987,11 +1987,19 @@ def record(entry):
         pass
 
 
-def recent(n=25):
+def recent(n=None):
+    """The diary, newest first. No cap unless a caller asks for one.
+
+    The page used to ask for 25 and then stop, so later clears never appeared
+    once the list was full. The log itself already keeps every line.
+    """
     if not MOVED_LOG.exists():
         return []
+    lines = MOVED_LOG.read_text().splitlines()
+    if n:
+        lines = lines[-n:]
     out = []
-    for line in MOVED_LOG.read_text().splitlines()[-n:]:
+    for line in lines:
         try:
             out.append(json.loads(line))
         except ValueError:

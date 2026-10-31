@@ -1,5 +1,5 @@
 {
-  "version": "1.22.22",
+  "version": "1.22.23",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "After an update finishes, Skurra no longer says that it failed."
+  "notes": "Scan works as soon as you open Disk space, and History keeps every entry."
 }

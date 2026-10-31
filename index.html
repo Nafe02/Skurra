@@ -257,7 +257,7 @@ button:hover:not(:disabled) { border-color: var(--patina); }
 button:disabled { opacity: 0.4; cursor: default; }
 button.go { background: var(--patina); border-color: var(--patina); color: var(--paper); }
 .bar {
-  position: fixed; z-index: 28; left: 50%; bottom: 14px; transform: translateX(-50%);
+  position: fixed; z-index: 32; left: 50%; bottom: 14px; transform: translateX(-50%);
   width: min(700px, calc(100% - 28px));
   display: flex; gap: 9px; align-items: center; flex-wrap: wrap;
   padding: 10px 12px; border-radius: 16px;
@@ -327,9 +327,11 @@ h3.important { color: #b5643d; }
 .more { display: block; width: 100%; margin-top: 4px; padding: 10px;
         background: none; border: 1px dashed var(--rule); color: var(--dim); font-size: 13px; }
 .more:hover { color: var(--ink); }
-.logrow { display: flex; gap: 12px; padding: 8px 4px;
+#logrows { max-height: 520px; overflow: auto; }
+.logrow { display: flex; gap: 12px; padding: 8px 4px; align-items: baseline;
           border-top: 1px solid var(--rule); color: var(--dim); font-size: 13px; }
-.logrow b { font-weight: 400; color: var(--ink); flex: 1; }
+.logrow b { font-weight: 500; color: var(--ink); flex: 1; min-width: 0; }
+.logrow .when { flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .logrow.refused b { color: var(--dim); text-decoration: line-through; }
 .warn { color: var(--patina); font-size: 13px; margin: 10px 0 0; }
 .warn button { font: inherit; font-size: 13px; cursor: pointer; padding: 0; border: 0;
@@ -870,7 +872,7 @@ body.welcoming .update.on {
     <div id="dhits" hidden></div>
     <div class="diskintro" id="diskintro">
       <h2>Pick a folder</h2>
-      <p class="sub">Or search above. Skurra looks through this computer, not just the open folder.</p>
+      <p class="sub">Press Scan to measure Home. Or pick another folder. Search looks through this computer, not just the open folder.</p>
     </div>
     <div class="roots" id="roots"></div>
     <div class="diskbody" id="diskbody" hidden>
@@ -912,7 +914,10 @@ body.welcoming .update.on {
 
   <details class="box" id="box-moved" ontoggle="if (this.open) loadLog()">
     <summary><svg class="hist" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg> History <span class="meta" id="meta-log"></span></summary>
-    <div class="inner" id="logrows"></div>
+    <div class="inner">
+      <p class="sub">Each clear, move, and empty is added here as you use Skurra.</p>
+      <div id="logrows"></div>
+    </div>
   </details>
 
   <p class="skip" id="skip"></p>
@@ -1133,6 +1138,7 @@ async function loadBin() {
       ? `Tick what you want gone for good, or empty the whole ${T()}. Nothing here can be undone.`
       : "";
     if (show && $("#bin").open) loadBinItems();
+    if ($("#box-moved").open) loadLog();
   } catch (e) {}
 }
 
@@ -1171,9 +1177,16 @@ async function loadBinItems() {
   }
 }
 
+function whenSaid(at) {
+  const d = new Date(String(at || "").replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return String(at || "").replace("T", " ");
+  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 async function loadLog() {
   const words = { trashed: WIN ? "removed" : "moved to Trash", cleared: "cleared",
-                  "partly cleared": "partly cleared", emptied: "emptied", failed: "failed" };
+                  "partly cleared": "partly cleared", emptied: "emptied", failed: "failed",
+                  refused: "left in place" };
   try {
     const items = await (await fetch("/api/moved")).json();
     $("#meta-log").textContent = items.length ? `${items.length} item${items.length === 1 ? "" : "s"}` : "nothing yet";
@@ -1182,8 +1195,8 @@ async function loadLog() {
           <div class="logrow ${e.did}">
             <b>${e.name || e.path}${e.where ? ` <span class="why">${e.where}</span>` : ""}</b>
             <span>${e.mb ? size(e.mb) : ""}</span>
-            <span>${e.why ? (e.did === "refused" ? "refused" : words[e.did] || e.did) + ": " + e.why : words[e.did] || e.did}</span>
-            <span>${e.at.replace("T", " ")}</span>
+            <span>${e.why ? (words[e.did] || e.did) + ": " + e.why : words[e.did] || e.did}</span>
+            <span class="when">${whenSaid(e.at)}</span>
           </div>`).join("")
       : `<div class="empty">Nothing moved yet. Everything Skurra does is written down here.</div>`;
   } catch (e) {}
@@ -1938,6 +1951,7 @@ function refreshDisk() {
 
 async function showDisk() {
   enterDisk();
+  $("#scan").disabled = false;
   $("#scan").textContent = "Scan";
   await loadRoots();
   $("#diskintro").hidden = false;
@@ -1946,7 +1960,7 @@ async function showDisk() {
   here = null;
   dirRows = [];
   dpick.clear();
-  note("Choose a folder. Its files appear after you click it.");
+  note("Press Scan to measure Home, or pick another folder.");
 }
 
 let sunTotal = 0;
@@ -2169,9 +2183,13 @@ function clearFind() {
 
 // ---------------------------------------------------------------- actions
 
-$("#scan").onclick = () => {
+$("#scan").onclick = async () => {
   if (view !== "disk") { scan(); return; }
-  if (here && !$("#diskbody").hidden) openDir(here.path);
+  if (here && !$("#diskbody").hidden) { openDir(here.path); return; }
+  await loadRoots();
+  const home = $("#roots").querySelector(".root");
+  if (home) home.click();
+  else note("Pick a folder below, then Scan can measure it.");
 };
 
 $("#pick").onclick = () => {
