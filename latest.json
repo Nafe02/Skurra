@@ -1,5 +1,5 @@
 {
-  "version": "1.22.23",
+  "version": "1.22.22",
   "url": "https://github.com/nafe02/Skurra/releases/latest",
-  "notes": "Scan works as soon as you open Disk space, and History keeps every entry."
+  "notes": "Scan works in Disk space, History keeps every entry, and Update now appears only after the Mac and Windows files are really there."
 }

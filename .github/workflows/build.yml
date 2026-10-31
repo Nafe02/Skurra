@@ -152,12 +152,23 @@ jobs:
 
   release:
     needs: [windows, mac]
+    if: always() && (needs.windows.result == 'success' || needs.mac.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
         with:
-          path: out
+          ref: ${{ github.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        if: needs.mac.result == 'success'
+        with:
+          name: mac
+          path: out/mac
+      - uses: actions/download-artifact@v4
+        if: needs.windows.result == 'success'
+        with:
+          name: windows
+          path: out/windows
       - name: Read the version number from app.py
         id: v
         run: echo "version=$(grep -m1 '^VERSION' app.py | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
@@ -166,6 +177,7 @@ jobs:
         with:
           tag_name: v${{ steps.v.outputs.version }}
           name: Skurra ${{ steps.v.outputs.version }}
+          fail_on_unmatched_files: false
           body: |
             Mac: Skurra.dmg
             Windows: Skurra.exe. If a Python DLL error is still on screen, download Skurra-Windows.zip, extract it, open the Skurra folder, and run the Skurra.exe inside that folder.
@@ -173,3 +185,22 @@ jobs:
             out/mac/Skurra.dmg
             out/windows/Skurra.exe
             out/windows/Skurra-Windows.zip
+      - name: Offer this version only after both downloads exist
+        if: needs.windows.result == 'success' && needs.mac.result == 'success'
+        continue-on-error: true
+        run: |
+          python3 - << 'PY'
+          import json
+          from pathlib import Path
+          ver = Path("app.py").read_text().split('VERSION = "', 1)[1].split('"', 1)[0]
+          path = Path("latest.json")
+          data = json.loads(path.read_text())
+          data["version"] = ver
+          path.write_text(json.dumps(data, indent=2) + "\n")
+          print("latest.json", ver)
+          PY
+          git add latest.json
+          git diff --cached --quiet && exit 0
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Offer ${{ steps.v.outputs.version }} now that the Mac and Windows downloads exist."
+          git push origin HEAD:main

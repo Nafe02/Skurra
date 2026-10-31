@@ -21,6 +21,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -34,7 +35,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.23"
+VERSION = "1.22.24"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -2028,9 +2029,33 @@ def swap_report():
     return last_swap
 
 
+def release_file_ready(version):
+    """True only when this computer's download is actually published.
+
+    latest.json can move before GitHub has the file. Offering that version
+    is how Update now ended on "HTTP Error 404: Not Found" on Mac and Windows.
+    A missing file is not an update yet.
+    """
+    url = DOWNLOAD["windows" if WINDOWS else "mac"].format(tag=f"v{version}")
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Range", "bytes=0-0")
+    try:
+        with urllib.request.urlopen(req, timeout=8, context=HTTPS) as r:
+            if r.status not in (200, 206):
+                return False
+            r.read(1)
+            return True
+    except Exception:
+        return False
+
+
 def check_update():
     """Ask latest.json what is out. A failed look is not remembered, so a
-    machine that was offline at launch still finds the update later."""
+    machine that was offline at launch still finds the update later.
+
+    A newer number whose file is not on the download page yet is not offered.
+    The next look tries again, instead of remembering a download that 404s.
+    """
     global update_cache
     if update_cache is not None and update_cache.get("latest") != update_cache.get("current"):
         return update_cache
@@ -2039,10 +2064,14 @@ def check_update():
     try:
         with urllib.request.urlopen(UPDATE_URL, timeout=6, context=HTTPS) as r:
             latest = json.loads(r.read().decode())
-        info["latest"] = str(latest.get("version", VERSION))
+        newer = str(latest.get("version", VERSION))
         info["url"] = str(latest.get("url", ""))
         info["notes"] = str(latest.get("notes", ""))
-        info["available"] = as_tuple(info["latest"]) > as_tuple(VERSION) and info["url"].startswith("http")
+        ready = (as_tuple(newer) > as_tuple(VERSION) and info["url"].startswith("http")
+                 and release_file_ready(newer))
+        if ready:
+            info["latest"] = newer
+            info["available"] = True
     except Exception:
         pass
     update_cache = info
@@ -2247,6 +2276,11 @@ def fetch(url, into, on_bit, tries=3):
             if not total or got >= total:
                 break
             last = f"the connection closed after {got} of {total} bytes"
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise OSError("the new Skurra is not on the download page yet. Wait a minute and press Try again.")
+            last = str(e) or e.__class__.__name__
+            got = into.stat().st_size if into.exists() else 0
         except Exception as e:
             last = str(e) or e.__class__.__name__
             got = into.stat().st_size if into.exists() else 0
