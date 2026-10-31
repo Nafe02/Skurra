@@ -35,7 +35,7 @@ HOME = Path.home()
 PORT = 8765
 
 # Bump this every time you ship a new build. Numbers only, dots between.
-VERSION = "1.22.26"
+VERSION = "1.22.27"
 
 # Where Skurra looks for news of a newer version: a small JSON file like
 #   {"version": "1.1.0", "url": "https://.../Skurra.dmg", "notes": "What changed"}
@@ -2332,14 +2332,49 @@ def sweep_leftovers():
                 pass
 
 
-def attach_update_dmg(dmg, mount):
-    """Open the downloaded disk image without hanging.
+def run_with_terminal(argv, timeout):
+    """Run a command with a terminal attached.
 
-    From the app, hdiutil has no terminal to talk to. The quiet attach used
-    to sit there until Python killed it, and the window then printed the
-    whole command. Drop the quarantine flag, do not wait on a closed input,
-    and if it stalls, let go and try again.
+    hdiutil attach never finishes when its input is closed. The app has no
+    terminal, so the update used to wait until the clock ran out and then
+    show the raw command. A stand-in terminal lets the attach finish.
     """
+    import pty
+    import select
+    master, slave = pty.openpty()
+    try:
+        proc = subprocess.Popen(argv, stdin=slave, stdout=slave, stderr=slave, close_fds=True)
+        os.close(slave)
+        slave = -1
+        deadline = time.time() + timeout
+        while proc.poll() is None:
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                proc.kill()
+                proc.wait(timeout=5)
+                raise subprocess.TimeoutExpired(argv, timeout)
+            ready, _, _ = select.select([master], [], [], min(0.4, remaining))
+            if ready:
+                try:
+                    os.read(master, 4096)
+                except OSError:
+                    break
+        if proc.returncode not in (0, None):
+            raise subprocess.CalledProcessError(proc.returncode, argv)
+    finally:
+        if slave != -1:
+            try:
+                os.close(slave)
+            except OSError:
+                pass
+        try:
+            os.close(master)
+        except OSError:
+            pass
+
+
+def attach_update_dmg(dmg, mount):
+    """Open the downloaded disk image. Retries after a half-open image."""
     try:
         subprocess.run(["xattr", "-d", "com.apple.quarantine", str(dmg)],
                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
@@ -2348,16 +2383,14 @@ def attach_update_dmg(dmg, mount):
         pass
     last = "the Mac could not open the disk image"
     for _attempt in range(1, 4):
-        subprocess.run(["hdiutil", "detach", str(mount), "-force"],
-                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL, timeout=20)
         try:
-            subprocess.run(
-                ["hdiutil", "attach", str(dmg), "-mountpoint", str(mount),
-                 "-nobrowse", "-readonly", "-noverify", "-noautoopen"],
-                check=True, timeout=40,
-                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL)
+            run_with_terminal(["hdiutil", "detach", str(mount), "-force"], 20)
+        except (OSError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            pass
+        try:
+            run_with_terminal(
+                ["hdiutil", "attach", str(dmg), "-mountpoint", str(mount), "-nobrowse", "-quiet"],
+                60)
             if (mount / "Skurra.app").exists():
                 return
             last = "the disk image did not contain Skurra"
@@ -2365,9 +2398,6 @@ def attach_update_dmg(dmg, mount):
             last = "opening the disk image took too long"
         except subprocess.CalledProcessError:
             last = "the disk image would not open"
-        subprocess.run(["hdiutil", "detach", str(mount), "-force"],
-                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL, timeout=20)
         time.sleep(1)
     raise OSError("The update downloaded, but " + last + ". Press Try again.")
 
